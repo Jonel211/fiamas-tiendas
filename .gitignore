@@ -1,0 +1,31 @@
+# Node.js & React (Frontend & Backend)
+**/node_modules/
+**/dist/
+**/build/
+.cache/
+*.local
+
+**/.env
+**/.env.*
+!.env.example
+**/.env.local
+**/.env.production
+
+# Gestores de paquetes y logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Base de Datos
+*.sql
+*.sqlite
+
+# Herramientas del Sistema
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
