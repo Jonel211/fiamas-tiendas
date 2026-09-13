@@ -22,6 +22,10 @@ app.get('/health', (req, res) => {
     });
 });
 
+// Rutas
+const authRoutes = require('./src/routes/authRoutes');
+app.use('/api/auth', authRoutes);
+
 // Iniciar servidor
 const PORT = process.env.PORT || 3000;
 

@@ -1,6 +1,7 @@
 // src/models/Cliente.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
+const bcrypt = require('bcryptjs');
 
 const Cliente = sequelize.define('Cliente', {
     id: {
@@ -30,6 +31,10 @@ const Cliente = sequelize.define('Cliente', {
     },
     email: {
         type: DataTypes.STRING(150),
+        allowNull: true
+    },
+    password_hash: {
+        type: DataTypes.STRING(255),
         allowNull: true
     },
     direccion: {
@@ -117,7 +122,26 @@ const Cliente = sequelize.define('Cliente', {
         allowNull: true
     }
 }, {
-    tableName: 'clientes'
+    tableName: 'clientes',
+    hooks: {
+        beforeCreate: async (cliente) => {
+            if (cliente.password_hash) {
+                const salt = await bcrypt.genSalt(10);
+                cliente.password_hash = await bcrypt.hash(cliente.password_hash, salt);
+            }
+        },
+        beforeUpdate: async (cliente) => {
+            if (cliente.changed('password_hash') && cliente.password_hash) {
+                const salt = await bcrypt.genSalt(10);
+                cliente.password_hash = await bcrypt.hash(cliente.password_hash, salt);
+            }
+        }
+    }
 });
+
+Cliente.prototype.validarPassword = async function (password) {
+    if (!this.password_hash) return false;
+    return await bcrypt.compare(password, this.password_hash);
+};
 
 module.exports = Cliente;
