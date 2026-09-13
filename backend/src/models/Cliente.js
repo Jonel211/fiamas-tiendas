@@ -11,7 +11,7 @@ const Cliente = sequelize.define('Cliente', {
     },
     tienda_id: {
         type: DataTypes.UUID,
-        allowNull: false
+        allowNull: true // Se deja true para que pueda haber clientes sin tienda
     },
     nombres: {
         type: DataTypes.STRING(100),

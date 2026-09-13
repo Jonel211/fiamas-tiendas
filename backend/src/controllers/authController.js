@@ -1,14 +1,6 @@
-const jwt = require('jsonwebtoken');
-const { Administrador, Tendero, Cliente } = require('../models');
+const authService = require('../services/authService'); // Importar el servicio de autenticación
 
-const generarToken = (usuario, rol) => {
-    return jwt.sign(
-        { id: usuario.id, rol: rol },
-        process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRE || '7d' }
-    );
-};
-
+// Controlador de inicio de sesion de todos los usuarios
 exports.login = async (req, res) => {
     try {
         const { email, password, rol } = req.body;
@@ -17,74 +9,48 @@ exports.login = async (req, res) => {
             return res.status(400).json({ error: 'Por favor, proporciona email y contraseña' });
         }
 
-        let usuario = null;
-        let rolEncontrado = rol;
-
-        // Si se especificó un rol, buscar solo en ese modelo
-        if (rol === 'admin') {
-            usuario = await Administrador.findOne({ where: { email } });
-        } else if (rol === 'tendero') {
-            usuario = await Tendero.findOne({ where: { email } });
-        } else if (rol === 'cliente') {
-            usuario = await Cliente.findOne({ where: { email } });
-        } else {
-            // Si no se especificó rol, buscar en cascada (Admin -> Tendero -> Cliente)
-            usuario = await Administrador.findOne({ where: { email } });
-            if (usuario) {
-                rolEncontrado = 'admin';
-            } else {
-                usuario = await Tendero.findOne({ where: { email } });
-                if (usuario) {
-                    rolEncontrado = 'tendero';
-                } else {
-                    usuario = await Cliente.findOne({ where: { email } });
-                    if (usuario) rolEncontrado = 'cliente';
-                }
-            }
-        }
-
-        // Verificar si el usuario existe
-        if (!usuario) {
-            return res.status(401).json({ error: 'Credenciales inválidas' });
-        }
-
-        // Verificar si está activo (los clientes tienen 'activo' y 'bloqueado')
-        if (usuario.activo === false) {
-            return res.status(403).json({ error: 'Usuario inactivo' });
-        }
-
-        if (rolEncontrado === 'cliente' && usuario.bloqueado) {
-            return res.status(403).json({ error: 'Usuario bloqueado', motivo: usuario.motivo_bloqueo });
-        }
-
-        // Validar contraseña
-        const isMatch = await usuario.validarPassword(password);
-        if (!isMatch) {
-            return res.status(401).json({ error: 'Credenciales inválidas' });
-        }
-
-        // Actualizar último acceso (si el modelo lo soporta)
-        if (usuario.ultimo_acceso !== undefined) {
-            usuario.ultimo_acceso = new Date();
-            await usuario.save({ hooks: false });
-        }
-
-        // Generar token JWT
-        const token = generarToken(usuario, rolEncontrado);
+        const resultado = await authService.login(email, password, rol);
 
         res.json({
             mensaje: 'Inicio de sesión exitoso',
-            token,
-            usuario: {
-                id: usuario.id,
-                nombre: usuario.nombre || usuario.nombres, // Admin tiene 'nombre', Tendero/Cliente tienen 'nombres'
-                email: usuario.email,
-                rol: rolEncontrado
-            }
+            ...resultado
         });
-
     } catch (error) {
         console.error('Error en el login:', error);
-        res.status(500).json({ error: 'Error en el servidor al intentar iniciar sesión' });
+        const code = error.message.includes('inválidas') || error.message.includes('inactivo') || error.message.includes('bloqueado') ? 401 : 500;
+        res.status(code).json({ error: error.message || 'Error en el servidor al intentar iniciar sesión' });
+    }
+};
+
+// Controlador de registro de administradores
+exports.registerAdmin = async (req, res) => {
+    try {
+        const result = await authService.registrarAdministrador(req.body);
+        res.status(201).json({ mensaje: 'Administrador registrado con éxito', data: result });
+    } catch (error) {
+        console.error('Error registrando admin:', error);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+// Controlador de registro de tenderos
+exports.registerTendero = async (req, res) => {
+    try {
+        const result = await authService.registrarTendero(req.body);
+        res.status(201).json({ mensaje: 'Tendero registrado con éxito', data: result });
+    } catch (error) {
+        console.error('Error registrando tendero:', error);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+// Controlador de registro de clientes
+exports.registerCliente = async (req, res) => {
+    try {
+        const result = await authService.registrarCliente(req.body);
+        res.status(201).json({ mensaje: 'Cliente registrado con éxito', data: result });
+    } catch (error) {
+        console.error('Error registrando cliente:', error);
+        res.status(400).json({ error: error.message });
     }
 };
