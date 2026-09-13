@@ -4,7 +4,15 @@ import { useLoginForm } from '../../../hooks/useLoginForm';
 import FormField from '../../ui/FormField';
 
 const LoginForm = () => {
-  const { form, errors, isSubmitting, handleChange, handleSubmit, toggleRemember } = useLoginForm();
+  const {
+    form,
+    errors,
+    serverError,
+    isSubmitting,
+    handleChange,
+    handleSubmit,
+    toggleRemember,
+  } = useLoginForm();
 
   return (
     <div
@@ -110,6 +118,8 @@ const LoginForm = () => {
         >
           {isSubmitting ? 'Ingresando...' : 'Iniciar sesión'}
         </button>
+
+        {/* Error del servidor */}
         {serverError && (
           <p
             className="text-[12px] text-center mt-2 px-3 py-2 rounded-md"
