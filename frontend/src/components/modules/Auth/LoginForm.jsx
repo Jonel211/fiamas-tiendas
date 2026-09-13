@@ -110,6 +110,14 @@ const LoginForm = () => {
         >
           {isSubmitting ? 'Ingresando...' : 'Iniciar sesión'}
         </button>
+        {serverError && (
+          <p
+            className="text-[12px] text-center mt-2 px-3 py-2 rounded-md"
+            style={{ color: '#E63946', backgroundColor: 'rgba(230, 57, 70, 0.1)' }}
+          >
+            {serverError}
+          </p>
+        )}
       </form>
 
       <p className="text-[11px] text-center mt-6" style={{ color: '#7a8295' }}>

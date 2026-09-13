@@ -1,12 +1,14 @@
 // src/hooks/useLoginForm.js
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { login } from '../services/authService';
 
 export const useLoginForm = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '', remember: false });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [serverError, setServerError] = useState('');
 
   const validateField = (name, value) => {
     let error = '';
@@ -40,22 +42,39 @@ export const useLoginForm = () => {
     if (errors[name]) {
       setErrors({ ...errors, [name]: validateField(name, value) });
     }
+    if (serverError) setServerError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      localStorage.setItem('fiamas_auth', 'true');
-      localStorage.setItem('fiamas_user', form.email);
+    setServerError('');
+
+    try {
+      await login({
+        email: form.email,
+        password: form.password,
+        remember: form.remember,
+      });
       navigate('/panel');
+    } catch (error) {
+      setServerError(error.message || 'Error al iniciar sesión');
+    } finally {
       setIsSubmitting(false);
-    }, 500);
+    }
   };
 
   const toggleRemember = (checked) => setForm({ ...form, remember: checked });
 
-  return { form, errors, isSubmitting, handleChange, handleSubmit, toggleRemember };
+  return {
+    form,
+    errors,
+    serverError,
+    isSubmitting,
+    handleChange,
+    handleSubmit,
+    toggleRemember,
+  };
 };
