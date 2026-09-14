@@ -1,4 +1,3 @@
-// src/components/modules/Auth/AuthBranding.jsx
 const AuthBranding = () => {
   return (
     <div

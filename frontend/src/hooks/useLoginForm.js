@@ -1,15 +1,17 @@
-// src/hooks/useLoginForm.js
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 
+// Hook para manejar el login
 export const useLoginForm = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [form, setForm] = useState({ email: '', password: '', remember: false });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState('');
 
+  // Validación de campos
   const validateField = (name, value) => {
     let error = '';
 
