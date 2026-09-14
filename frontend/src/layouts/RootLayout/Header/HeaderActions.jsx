@@ -28,7 +28,7 @@ const HeaderActions = () => {
   const handleConfirmLogout = () => {
     setShowLogoutModal(false);
     logout();
-    navigate('/login');
+    navigate('/auth/login');
   };
 
   const isDark = theme === 'dark';

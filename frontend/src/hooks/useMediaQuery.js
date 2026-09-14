@@ -25,9 +25,6 @@ export const useMediaQuery = (query) => {
       mediaQuery.addListener(handler);
     }
 
-    // Verificar valor inicial por si cambió entre render y efecto
-    setMatches(mediaQuery.matches);
-
     return () => {
       if (mediaQuery.removeEventListener) {
         mediaQuery.removeEventListener('change', handler);
