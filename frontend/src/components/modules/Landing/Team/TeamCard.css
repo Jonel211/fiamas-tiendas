@@ -1,0 +1,24 @@
+/* src/components/modules/Landing/Team/TeamCard.css */
+
+.team-card {
+  text-align: center; padding: 34px 20px;
+  border-radius: var(--radius-lg);
+  background: var(--white); border: 1px solid var(--border-soft);
+  transition: transform 0.22s var(--ease), box-shadow 0.22s ease;
+}
+.team-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 22px 38px -24px rgba(43, 45, 66, 0.4);
+}
+
+.team-card__avatar {
+  width: 64px; height: 64px; border-radius: 50%;
+  margin: 0 auto 16px; color: var(--white);
+  font-family: var(--font-display); font-weight: 700; font-size: 1.3rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.25s var(--ease);
+}
+.team-card:hover .team-card__avatar { transform: scale(1.08); }
+
+.team-card h3 { font-size: 1.02rem; margin-bottom: 4px; }
+.team-card p { font-size: 0.88rem; color: var(--ink-muted); }

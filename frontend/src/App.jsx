@@ -1,6 +1,8 @@
 // src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+
 import RootLayout from './layouts/RootLayout/RootLayout';
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import StoresPage from './pages/StoresPage';
@@ -13,9 +15,13 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        {/* Landing pública - raíz del sitio */}
+        <Route path="/" element={<LandingPage />} />
+
+        {/* Login */}
         <Route path="/login" element={<LoginPage />} />
 
+        {/* Panel privado (con sidebar) */}
         <Route path="/panel" element={<RootLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="tiendas" element={<StoresPage />} />
@@ -25,7 +31,8 @@ function App() {
           <Route path="avisos" element={<AnnouncementsPage />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Cualquier ruta desconocida → landing */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

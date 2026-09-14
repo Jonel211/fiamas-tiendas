@@ -1,0 +1,3 @@
+/* src/components/modules/Landing/Faq/FaqSection.css */
+
+.faq { display: flex; flex-direction: column; gap: 12px; }
