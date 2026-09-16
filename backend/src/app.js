@@ -21,4 +21,15 @@ app.get('/health', (req, res) => {
     });
 });
 
+// === NUEVAS RUTAS AGREGADAS ===
+const tiendaRoutes = require('./routes/tiendaRoutes');
+app.use('/api/tiendas', tiendaRoutes);
+
+const tenderoRoutes = require('./routes/tenderoRoutes');
+app.use('/api/tenderos', tenderoRoutes);
+
+const productoRoutes = require('./routes/productoRoutes');
+app.use('/api/productos', productoRoutes);
+
+
 module.exports = app;
