@@ -42,7 +42,7 @@ export const TEAM = [
   { name: 'Jonel', role: 'Organización del flujo de trabajo', initial: 'J', color: '#2B2D42' },
 ];
 
-export const FAQS = [
+export const QUESTIONS = [
   { q: '¿Fiadito reemplaza mi cuaderno de fiados?', a: 'Sí. Hace lo mismo que tu cuaderno de toda la vida, pero no se moja, no se pierde y nunca se te acaban las hojas.' },
   { q: '¿Necesito internet para usarlo?', a: 'Necesitas conexión para sincronizar tus datos, así siempre tienes un respaldo aunque tu celular se dañe o lo cambies.' },
   { q: '¿Mis clientes tienen que instalar algo?', a: 'No es obligatorio. Tus clientes pueden tener su propia cuenta para ver cuánto deben, pero tú puedes manejar todo desde tu tienda sin que ellos la usen.' },

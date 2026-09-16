@@ -6,12 +6,12 @@
  */
 
 import { useState } from 'react';
-import { FAQS } from '@/constants/landingData';
+import { QUESTIONS } from '@/constants/landingData';
 import SectionHead from '../shared/SectionHead';
-import FaqItem from './FaqItem';
-import './FaqSection.css';
+import QuestionItem from './QuestionItem';
+import './QuestionsSection.css';
 
-const FaqSection = () => {
+const QuestionsSection = () => {
   const [openIndex, setOpenIndex] = useState(null);
 
   const handleToggle = (index) => {
@@ -24,8 +24,8 @@ const FaqSection = () => {
         <SectionHead title="Preguntas frecuentes" />
 
         <div className="faq" data-reveal>
-          {FAQS.map((faq, index) => (
-            <FaqItem
+          {QUESTIONS.map((faq, index) => (
+            <QuestionItem
               key={faq.q}
               question={faq.q}
               answer={faq.a}
@@ -39,4 +39,4 @@ const FaqSection = () => {
   );
 };
 
-export default FaqSection;
+export default QuestionsSection;

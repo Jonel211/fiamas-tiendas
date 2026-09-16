@@ -5,9 +5,9 @@
  */
 
 import { useContactForm } from '@/hooks/useContactForm';
-import './CtaForm.css';
+import './AccessForm.css';
 
-const CtaForm = () => {
+const AccessForm = () => {
   const { email, setEmail, note, handleSubmit } = useContactForm();
 
   return (
@@ -36,4 +36,4 @@ const CtaForm = () => {
   );
 };
 
-export default CtaForm;
+export default AccessForm;

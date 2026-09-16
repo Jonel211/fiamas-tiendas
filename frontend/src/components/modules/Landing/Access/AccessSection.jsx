@@ -7,10 +7,10 @@
  * - Título, subtítulo y formulario de email.
  */
 
-import CtaForm from './CtaForm';
-import './CtaSection.css';
+import AccessForm from './AccessForm';
+import './AccessSection.css';
 
-const CtaSection = () => {
+const AccessSection = () => {
   return (
     <section className="cta" id="contacto">
       <div className="container">
@@ -24,7 +24,7 @@ const CtaSection = () => {
             <h2>¿Listo para dejar el cuaderno de fiados?</h2>
             <p>Déjanos tu correo y te avisamos apenas Fiadito esté listo para tu tienda.</p>
 
-            <CtaForm />
+            <AccessForm />
           </div>
         </div>
       </div>
@@ -32,4 +32,4 @@ const CtaSection = () => {
   );
 };
 
-export default CtaSection;
+export default AccessSection;

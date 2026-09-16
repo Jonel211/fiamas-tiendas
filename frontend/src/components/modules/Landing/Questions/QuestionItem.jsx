@@ -5,9 +5,9 @@
  * Solo un ítem puede estar abierto a la vez (lo maneja FaqSection).
  */
 
-import './FaqItem.css';
+import './QuestionItem.css';
 
-const FaqItem = ({ question, answer, isOpen, onToggle }) => {
+const QuestionItem = ({ question, answer, isOpen, onToggle }) => {
   return (
     <div className="faq-item">
       <button
@@ -25,4 +25,4 @@ const FaqItem = ({ question, answer, isOpen, onToggle }) => {
   );
 };
 
-export default FaqItem;
+export default QuestionItem;

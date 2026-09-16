@@ -59,12 +59,3 @@
   letter-spacing: 0.02em;
 }
 
-/* Link "Acceder al panel" - diferenciado de los links normales */
-.footer__panel-link {
-  color: var(--gold) !important;
-  font-weight: 600;
-}
-
-.footer__panel-link:hover {
-  color: var(--cream) !important;
-}
