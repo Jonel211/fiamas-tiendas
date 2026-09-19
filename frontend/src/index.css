@@ -8,3 +8,13 @@ body {
   background-color: #f1f5f9;
   font-family: 'Inter', sans-serif;
 }
+
+/* Previene scroll del body cuando el layout raíz controla el scroll interno */
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+#root {
+  height: 100%;
+}

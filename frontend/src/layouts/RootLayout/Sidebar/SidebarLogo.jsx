@@ -1,19 +1,29 @@
 /**
  * SidebarLogo
- * Bloque superior del sidebar: logo verde "F" + nombre "Fiamas" + subtítulo.
+ * Bloque superior del sidebar.
+ * El logo + FIAMAS ocupan todo el ancho disponible del bloque.
  */
 
-const SidebarLogo = () => {
+import logoIcon from '@/assets/icons/logo.png';
+
+const SidebarLogo = ({ isExpanded }) => {
   return (
-    <div className="px-6 py-6 border-b border-gray-100">
-      <div className="flex items-center gap-2.5">
-        <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[#1F8A4C]">
-          <span className="text-white font-bold text-[14px]">F</span>
-        </div>
-        <div>
-          <p className="text-[15px] font-semibold text-gray-900 leading-tight">Fiamas</p>
-          <p className="text-[11px] text-gray-500 leading-tight">Admin Panel</p>
-        </div>
+    <div className="border-b border-white/10">
+      <div
+        className={`flex items-center py-4 transition-all duration-300 ${
+          isExpanded ? 'gap-3 px-5' : 'justify-center'
+        }`}
+      >
+        <img
+          src={logoIcon}
+          alt="Fiamas"
+          className="w-12 h-12 object-contain flex-shrink-0"
+        />
+        {isExpanded && (
+          <span className="text-white font-extrabold text-[26px] tracking-[0.05em] whitespace-nowrap leading-none">
+            FIAMAS
+          </span>
+        )}
       </div>
     </div>
   );

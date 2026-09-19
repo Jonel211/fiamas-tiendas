@@ -1,6 +1,14 @@
 // src/pages/LoginPage.jsx
+/**
+ * LoginPage
+ * Página de inicio de sesión.
+ * Layout split: formulario a la izquierda, ilustración a la derecha.
+ * Incluye imagen espejada decorativa en el fondo.
+ */
+
 import AuthBranding from '../components/modules/Auth/AuthBranding';
 import LoginForm from '../components/modules/Auth/LoginForm';
+import tiendaImg from '@/assets/images/tienda.png';
 
 const LoginPage = () => {
   return (
@@ -30,7 +38,7 @@ const LoginPage = () => {
 
       {/* Imagen espejada de fondo */}
       <img
-        src="/images/tienda.png"
+        src={tiendaImg}
         alt=""
         aria-hidden="true"
         className="absolute pointer-events-none select-none hidden lg:block"

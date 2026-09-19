@@ -1,24 +1,34 @@
-// src/pages/DashboardPage.jsx
-import MetricCards from '../components/modules/Dashboard/MetricCards';
-import ChartsSection from '../components/modules/Dashboard/ChartsSection';
-import RecentVendorsTable from '../components/modules/Dashboard/RecentVendorsTable';
+/**
+ * DashboardPage
+ * Página principal del panel administrativo.
+ * Layout:
+ * - Fila 1: cards apiladas (izq) + donut (der)
+ * - Fila 2: growth chart
+ * - Fila 3: tabla de tenderos
+ */
+
+import MetricCards from '@/components/modules/Dashboard/MetricCards/MetricCards';
+import StatusChart from '@/components/modules/Dashboard/Charts/StatusChart';
+import ChartsSection from '@/components/modules/Dashboard/Charts/ChartsSection';
+import RecentVendorsTable from '@/components/modules/Dashboard/RecentVendors/RecentVendorsTable';
 
 const DashboardPage = () => {
   return (
     <div className="space-y-6">
-      {/* Encabezado */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">Vista operativa de tu plataforma Fiamas.</p>
+      {/* Fila 1: cards + donut */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1">
+          <MetricCards />
+        </div>
+        <div className="lg:col-span-2">
+          <StatusChart />
+        </div>
       </div>
 
-      {/* Tarjetas de métricas */}
-      <MetricCards />
-
-      {/* Gráficos */}
+      {/* Fila 2: growth chart */}
       <ChartsSection />
 
-      {/* Tabla de tenderos recientes */}
+      {/* Fila 3: tabla */}
       <RecentVendorsTable />
     </div>
   );

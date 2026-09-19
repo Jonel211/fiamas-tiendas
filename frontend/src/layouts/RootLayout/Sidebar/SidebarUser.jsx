@@ -1,53 +1,80 @@
 /**
  * SidebarUser
  * Bloque inferior del sidebar:
- * - Avatar con iniciales.
- * - Nombre y rol del usuario logueado.
- * - Botón de cerrar sesión (ícono de salida).
+ * - Logo custom + "Administrador".
+ * - Botón de cerrar sesión que abre un modal de confirmación.
  */
 
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
-import { logout, getCurrentUser } from '@/services/authService';
+import { logout } from '@/services/authService';
+import logoIcon from '@/assets/icons/logo.png';
+import closeIcon from '@/assets/icons/close1.png';
+import LogoutModal from './LogoutModal';
 
-const SidebarUser = () => {
+const SidebarUser = ({ isExpanded }) => {
   const navigate = useNavigate();
-  const user = getCurrentUser();
+  const [showModal, setShowModal] = useState(false);
 
-  const userName = user?.nombre || 'Administrador';
-  const userRole = user?.rol === 'admin' ? 'Administrador' : user?.rol || 'Administrador';
-  const initials = userName
-    .split(' ')
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-
-  const handleLogout = () => {
+  const handleConfirm = () => {
+    setShowModal(false);
     logout();
     navigate('/login');
   };
 
   return (
-    <div className="px-4 py-4 border-t border-gray-100">
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-[#1F8A4C] flex items-center justify-center flex-shrink-0">
-          <span className="text-white font-semibold text-[12px]">{initials}</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-medium text-gray-900 truncate">{userName}</p>
-          <p className="text-[11px] text-gray-500 truncate">{userRole}</p>
-        </div>
-        <button
-          onClick={handleLogout}
-          title="Cerrar sesión"
-          aria-label="Cerrar sesión"
-          className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors flex-shrink-0"
-        >
-          <LogOut className="w-[18px] h-[18px]" />
-        </button>
+    <>
+      <div className={`py-4 border-t border-white/10 ${isExpanded ? 'px-3' : 'px-2'}`}>
+        {isExpanded ? (
+          <div className="flex items-center justify-between gap-2 px-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <img
+                src={logoIcon}
+                alt=""
+                className="w-6 h-6 object-contain flex-shrink-0"
+              />
+              <span className="text-[13px] font-medium text-white/85 truncate whitespace-nowrap">
+                Administrador
+              </span>
+            </div>
+            <button
+              onClick={() => setShowModal(true)}
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión"
+              className="flex-shrink-0 transition-transform hover:scale-110 active:scale-95"
+            >
+              <img
+                src={closeIcon}
+                alt="Cerrar sesión"
+                className="w-9 h-9 object-contain"
+              />
+            </button>
+          </div>
+        ) : (
+          <div className="flex justify-center">
+            <button
+              onClick={() => setShowModal(true)}
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión"
+              className="transition-transform hover:scale-110 active:scale-95"
+            >
+              <img
+                src={closeIcon}
+                alt="Cerrar sesión"
+                className="w-10 h-10 object-contain"
+              />
+            </button>
+          </div>
+        )}
       </div>
-    </div>
+
+      {showModal && (
+        <LogoutModal
+          onConfirm={handleConfirm}
+          onCancel={() => setShowModal(false)}
+        />
+      )}
+    </>
   );
 };
 

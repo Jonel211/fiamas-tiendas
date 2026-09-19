@@ -1,4 +1,12 @@
 // src/components/modules/Auth/AuthBranding.jsx
+/**
+ * AuthBranding
+ * Panel visual derecho del login: ilustración de tienda.
+ * Carga la imagen desde assets para que Vite la optimice.
+ */
+
+import tiendaImg from '@/assets/images/tienda.png';
+
 const AuthBranding = () => {
   return (
     <div
@@ -6,12 +14,10 @@ const AuthBranding = () => {
       style={{ paddingRight: '45px' }}
     >
       <img
-        src="/images/tienda.png"
+        src={tiendaImg}
         alt="Ilustración Fiamas"
         className="w-full h-full object-contain select-none"
-        style={{
-          transform: 'scale(1.08)',
-        }}
+        style={{ transform: 'scale(1.08)' }}
       />
     </div>
   );
