@@ -1,8 +1,8 @@
 /**
  * SidebarNav
  * Lista de navegación principal.
- * Al hacer click en un ícono, expande el sidebar.
- * Cuando colapsado, solo muestra íconos (con tooltip nativo).
+ * Soporta modo claro y oscuro.
+ * El item activo se ve con fondo teal y texto blanco.
  */
 
 import { NavLink } from 'react-router-dom';
@@ -37,13 +37,11 @@ const SidebarNav = ({ isExpanded, onNavigate }) => {
           title={!isExpanded ? item.label : undefined}
           className={({ isActive }) =>
             `flex items-center rounded-lg text-[13.5px] font-medium transition-all ${
-              isExpanded
-                ? 'gap-3 px-3 py-2.5'
-                : 'justify-center px-0 py-2.5'
+              isExpanded ? 'gap-3 px-3 py-2.5' : 'justify-center px-0 py-2.5'
             } ${
               isActive
-                ? 'bg-[#1F8A4C]/25 text-white'
-                : 'text-white/60 hover:bg-white/5 hover:text-white'
+                ? 'bg-[#1D9492] text-white shadow-sm'
+                : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/5'
             }`
           }
         >
@@ -52,9 +50,7 @@ const SidebarNav = ({ isExpanded, onNavigate }) => {
             alt=""
             className="w-[22px] h-[22px] object-contain flex-shrink-0"
           />
-          {isExpanded && (
-            <span className="whitespace-nowrap">{item.label}</span>
-          )}
+          {isExpanded && <span className="whitespace-nowrap">{item.label}</span>}
         </NavLink>
       ))}
     </nav>

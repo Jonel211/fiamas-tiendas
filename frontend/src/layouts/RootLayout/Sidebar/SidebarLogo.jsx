@@ -1,26 +1,22 @@
 /**
  * SidebarLogo
- * Bloque superior del sidebar.
- * El logo + FIAMAS ocupan todo el ancho disponible del bloque.
+ * Bloque superior del sidebar: logo + FIAMAS centrado.
+ * En light el logo se ve oscuro; en dark se ve blanco.
  */
 
 import logoIcon from '@/assets/icons/logo.png';
 
 const SidebarLogo = ({ isExpanded }) => {
   return (
-    <div className="border-b border-white/10">
-      <div
-        className={`flex items-center py-4 transition-all duration-300 ${
-          isExpanded ? 'gap-3 px-5' : 'justify-center'
-        }`}
-      >
+    <div className="py-5 border-b border-gray-100 dark:border-white/5 flex justify-center">
+      <div className="flex items-center gap-2.5">
         <img
           src={logoIcon}
           alt="Fiamas"
-          className="w-12 h-12 object-contain flex-shrink-0"
+          className="w-11 h-11 object-contain flex-shrink-0 brightness-0 opacity-80 dark:opacity-100 dark:invert"
         />
         {isExpanded && (
-          <span className="text-white font-extrabold text-[26px] tracking-[0.05em] whitespace-nowrap leading-none">
+          <span className="text-[22px] font-extrabold tracking-[0.08em] whitespace-nowrap text-gray-800 dark:text-slate-100">
             FIAMAS
           </span>
         )}

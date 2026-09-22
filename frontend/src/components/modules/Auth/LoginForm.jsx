@@ -1,7 +1,19 @@
-// src/components/modules/Auth/LoginForm.jsx
+/**
+ * LoginForm
+ * Formulario de inicio de sesión.
+ * Compuesto por:
+ * - LoginFormHeader (logo + título)
+ * - FormField (inputs)
+ * - LoginFormOptions (remember + forgot)
+ * - LoginSubmitButton (botón)
+ */
+
 import { Mail, Lock } from 'lucide-react';
-import { useLoginForm } from '../../../hooks/useLoginForm';
+import { useLoginForm } from '@/hooks/useLoginForm';
 import FormField from '../../ui/FormField';
+import LoginFormHeader from './LoginFormHeader';
+import LoginFormOptions from './LoginFormOptions';
+import LoginSubmitButton from './LoginSubmitButton';
 
 const LoginForm = () => {
   const {
@@ -18,37 +30,15 @@ const LoginForm = () => {
     <div
       className="w-full max-w-[340px] rounded-2xl px-7 py-8"
       style={{
-        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+        backgroundColor: 'rgba(255, 255, 255, 0.35)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
-        border: '1px solid rgba(31, 138, 76, 0.35)',
-        boxShadow: '0 12px 40px -15px rgba(15, 61, 36, 0.12)',
+        border: '1px solid rgba(29, 148, 146, 0.4)',
+        boxShadow: '0 12px 40px -15px rgba(15, 61, 60, 0.15)',
       }}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-2.5 mb-7">
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center"
-          style={{ backgroundColor: '#1F8A4C' }}
-        >
-          <span className="text-white font-bold text-[13px]">F</span>
-        </div>
-        <span className="font-semibold text-[15px]" style={{ color: '#0f3d24' }}>
-          Fiamas
-        </span>
-      </div>
+      <LoginFormHeader />
 
-      {/* Encabezado */}
-      <div className="mb-6">
-        <h1 className="text-[22px] font-semibold tracking-tight mb-1.5" style={{ color: '#0f3d24' }}>
-          Iniciar sesión
-        </h1>
-        <p className="text-[12.5px]" style={{ color: '#5a6274' }}>
-          Ingresa tus credenciales para continuar.
-        </p>
-      </div>
-
-      {/* Formulario */}
       <form onSubmit={handleSubmit} className="space-y-3.5" noValidate>
         <FormField
           label="Correo electrónico"
@@ -72,54 +62,13 @@ const LoginForm = () => {
           error={errors.password}
         />
 
-        {/* Remember + Forgot */}
-        <div className="flex items-center justify-between pt-0.5">
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={form.remember}
-              onChange={(e) => toggleRemember(e.target.checked)}
-              className="w-3.5 h-3.5 rounded cursor-pointer"
-              style={{ accentColor: '#1F8A4C' }}
-            />
-            <span className="text-[12px]" style={{ color: '#5a6274' }}>
-              Mantener sesión
-            </span>
-          </label>
-          <a
-            href="#"
-            className="text-[12px] font-medium transition-colors"
-            style={{ color: '#1F8A4C' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#0f3d24')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#1F8A4C')}
-          >
-            ¿Olvidaste tu contraseña?
-          </a>
-        </div>
+        <LoginFormOptions
+          remember={form.remember}
+          onRememberChange={toggleRemember}
+        />
 
-        {/* Botón */}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full text-white text-[13px] font-medium py-2.5 rounded-lg transition-all mt-1 disabled:opacity-70 disabled:cursor-not-allowed"
-          style={{
-            backgroundColor: '#1F8A4C',
-            boxShadow: '0 6px 16px -6px rgba(31,138,76,0.5)',
-          }}
-          onMouseEnter={(e) => {
-            if (isSubmitting) return;
-            e.currentTarget.style.backgroundColor = '#1a7040';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#1F8A4C';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          {isSubmitting ? 'Ingresando...' : 'Iniciar sesión'}
-        </button>
+        <LoginSubmitButton isSubmitting={isSubmitting} />
 
-        {/* Error del servidor */}
         {serverError && (
           <p
             className="text-[12px] text-center mt-2 px-3 py-2 rounded-md"

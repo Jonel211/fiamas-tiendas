@@ -1,8 +1,7 @@
 /**
  * SidebarUser
- * Bloque inferior del sidebar:
- * - Logo custom + "Administrador".
- * - Botón de cerrar sesión que abre un modal de confirmación.
+ * Bloque inferior del sidebar: logo + "Administrador" + botón logout.
+ * En light el logo se ve oscuro; en dark se ve blanco.
  */
 
 import { useState } from 'react';
@@ -24,16 +23,20 @@ const SidebarUser = ({ isExpanded }) => {
 
   return (
     <>
-      <div className={`py-4 border-t border-white/10 ${isExpanded ? 'px-3' : 'px-2'}`}>
+      <div
+        className={`py-4 border-t transition-colors bg-gray-50 dark:bg-transparent border-gray-200 dark:border-white/5 ${
+          isExpanded ? 'px-3' : 'px-2'
+        }`}
+      >
         {isExpanded ? (
           <div className="flex items-center justify-between gap-2 px-2">
             <div className="flex items-center gap-2.5 min-w-0">
               <img
                 src={logoIcon}
                 alt=""
-                className="w-6 h-6 object-contain flex-shrink-0"
+                className="w-6 h-6 object-contain flex-shrink-0 brightness-0 opacity-80 dark:opacity-100 dark:invert"
               />
-              <span className="text-[13px] font-medium text-white/85 truncate whitespace-nowrap">
+              <span className="text-[13px] font-medium truncate whitespace-nowrap text-gray-700 dark:text-slate-400">
                 Administrador
               </span>
             </div>

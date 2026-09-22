@@ -1,10 +1,4 @@
 // src/components/modules/Auth/AuthBranding.jsx
-/**
- * AuthBranding
- * Panel visual derecho del login: ilustración de tienda.
- * Carga la imagen desde assets para que Vite la optimice.
- */
-
 import tiendaImg from '@/assets/images/tienda.png';
 
 const AuthBranding = () => {

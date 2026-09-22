@@ -1,5 +1,10 @@
 // src/components/ui/FormField.jsx
-//LOGIN
+/**
+ * FormField
+ * Input reutilizable con label, icono opcional y mensaje de error.
+ * Usa la paleta teal de Fiamas.
+ */
+
 const FormField = ({
   label,
   name,
@@ -33,9 +38,13 @@ const FormField = ({
             borderColor: error ? '#E63946' : 'rgba(255, 255, 255, 0.9)',
             color: '#2B2D42',
           }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = error ? '#E63946' : '#1F8A4C')}
+          onFocus={(e) =>
+            (e.currentTarget.style.borderColor = error ? '#E63946' : '#1D9492')
+          }
           onBlur={(e) =>
-            (e.currentTarget.style.borderColor = error ? '#E63946' : 'rgba(255,255,255,0.9)')
+            (e.currentTarget.style.borderColor = error
+              ? '#E63946'
+              : 'rgba(255,255,255,0.9)')
           }
         />
       </div>

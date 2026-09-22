@@ -1,8 +1,7 @@
 /**
  * ProfileMenu
- * Menú desplegable que aparece al hacer click en el ícono de perfil.
- * Opciones: Configuración y Cerrar sesión.
- * Se cierra al hacer click afuera.
+ * Menú desplegable del ícono de perfil.
+ * Soporta modo claro y oscuro.
  */
 
 import { useRef } from 'react';
@@ -30,24 +29,21 @@ const ProfileMenu = ({ onClose, onLogout }) => {
   return (
     <div
       ref={menuRef}
-      className="absolute right-0 top-full mt-2 w-[220px] bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden z-50"
+      className="absolute right-0 top-full mt-2 w-[220px] bg-white dark:bg-[#242B3D] rounded-lg shadow-lg dark:shadow-xl border border-gray-100 dark:border-white/5 overflow-hidden z-50"
     >
-      {/* Configuración */}
       <button
         onClick={handleConfig}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left text-[14px] font-medium text-gray-800 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center gap-3 px-4 py-3 text-left text-[14px] font-medium text-gray-800 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
       >
         <img src={iconConfig} alt="" className="w-5 h-5 object-contain" />
         <span>Configuración</span>
       </button>
 
-      {/* Separador */}
-      <div className="border-t border-gray-100" />
+      <div className="border-t border-gray-100 dark:border-white/5" />
 
-      {/* Cerrar sesión */}
       <button
         onClick={handleLogout}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left text-[14px] font-medium text-red-600 hover:bg-red-50 transition-colors"
+        className="w-full flex items-center gap-3 px-4 py-3 text-left text-[14px] font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
       >
         <Power className="w-5 h-5" strokeWidth={2.5} />
         <span>Cerrar sesión</span>
