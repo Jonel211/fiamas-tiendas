@@ -1,120 +1,176 @@
-// src/controllers/tenderoController.js
-const { Tendero } = require('../models');
-const bcrypt = require('bcryptjs');
+const { Tendero, Tienda, sequelize } = require('../models');
 
-// Obtener perfil del tendero logueado
-exports.obtenerPerfil = async (req, res) => {
+// ==========================================
+// 1. OBTENER PERFIL DEL TENDERO
+// ==========================================
+exports.getPerfil = async (req, res) => {
     try {
-        const tendero = await Tendero.findByPk(req.usuario.id, {
-            attributes: { exclude: ['password_hash'] } // Nunca devolver la contraseña
+        const tenderoId = req.usuario.id;
+
+        const tendero = await Tendero.findOne({
+            where: { id: tenderoId, activo: true },
+            attributes: { exclude: ['password_hash'] },
+            include: [
+                {
+                    model: Tienda,
+                    as: 'tiendas',
+                    where: { activo: true },
+                    required: false
+                }
+            ]
         });
 
         if (!tendero) {
-            return res.status(404).json({
-                success: false,
-                message: 'Usuario no encontrado'
-            });
+            return res.status(404).json({ error: 'Tendero no encontrado.' });
         }
 
-        res.json({
-            success: true,
-            message: 'Perfil obtenido exitosamente',
-            data: { tendero }
+        res.status(200).json({
+            msg: 'Perfil del tendero',
+            tendero
         });
     } catch (error) {
         console.error('Error al obtener perfil:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error del servidor al obtener el perfil',
-            error: error.message
-        });
+        res.status(500).json({ error: 'Error interno al obtener el perfil.' });
     }
 };
 
-// Actualizar perfil del tendero
+// ==========================================
+// 2. ACTUALIZAR PERFIL DEL TENDERO
+// ==========================================
 exports.actualizarPerfil = async (req, res) => {
     try {
-        const { dni, nombres, apellidos, telefono, fecha_nacimiento, direccion, password } = req.body;
+        const tenderoId = req.usuario.id;
+        const { nombres, apellidos, email, telefono, direccion, foto_url } = req.body;
 
-        const tendero = await Tendero.findByPk(req.usuario.id);
+        const tendero = await Tendero.findOne({ where: { id: tenderoId, activo: true } });
         if (!tendero) {
-            return res.status(404).json({
-                success: false,
-                message: 'Usuario no encontrado'
-            });
+            return res.status(404).json({ error: 'Tendero no encontrado.' });
         }
 
-        // Verificar DNI único si se intenta cambiar
-        if (dni && dni !== tendero.dni) {
-            const existeDNI = await Tendero.findOne({ where: { dni } });
-            if (existeDNI) {
-                return res.status(409).json({
-                    success: false,
-                    message: 'El DNI ya está registrado por otro usuario'
-                });
+        // Si cambia el email, verificar que no exista en otro tendero
+        if (email && email !== tendero.email) {
+            const existente = await Tendero.findOne({ where: { email, activo: true } });
+            if (existente) {
+                return res.status(400).json({ error: 'El email ya está en uso por otro tendero.' });
             }
         }
 
-        // Preparar datos de actualización
-        const datosActualizacion = {
-            dni: dni || tendero.dni,
-            nombres: nombres || tendero.nombres,
-            apellidos: apellidos || tendero.apellidos,
-            telefono: telefono || tendero.telefono,
-            fecha_nacimiento: fecha_nacimiento || tendero.fecha_nacimiento,
-            direccion: direccion !== undefined ? direccion : tendero.direccion
-        };
-
-        // Si se proporciona nueva contraseña, encriptarla
-        if (password) {
-            datosActualizacion.password_hash = await bcrypt.hash(password, 10);
+        // Si cambia el teléfono, verificar que no exista en otro tendero
+        if (telefono && telefono !== tendero.telefono) {
+            const existente = await Tendero.findOne({ where: { telefono, activo: true } });
+            if (existente) {
+                return res.status(400).json({ error: 'El teléfono ya está en uso por otro tendero.' });
+            }
         }
+
+        const datosActualizacion = {};
+        if (nombres !== undefined) datosActualizacion.nombres = nombres;
+        if (apellidos !== undefined) datosActualizacion.apellidos = apellidos;
+        if (email !== undefined) datosActualizacion.email = email;
+        if (telefono !== undefined) datosActualizacion.telefono = telefono;
+        if (direccion !== undefined) datosActualizacion.direccion = direccion;
+        if (foto_url !== undefined) datosActualizacion.foto_url = foto_url;
+        datosActualizacion.actualizado_en = new Date();
 
         await tendero.update(datosActualizacion);
 
-        // Obtener datos actualizados sin la contraseña
-        const tenderoActualizado = await Tendero.findByPk(req.usuario.id, {
-            attributes: { exclude: ['password_hash'] }
-        });
-
-        res.json({
-            success: true,
-            message: 'Perfil actualizado exitosamente',
-            data: { tendero: tenderoActualizado }
+        res.status(200).json({
+            msg: 'Perfil actualizado exitosamente',
+            tendero: {
+                id: tendero.id,
+                dni: tendero.dni,
+                nombres: tendero.nombres,
+                apellidos: tendero.apellidos,
+                email: tendero.email,
+                telefono: tendero.telefono
+            }
         });
     } catch (error) {
         console.error('Error al actualizar perfil:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error del servidor al actualizar el perfil',
-            error: error.message
-        });
+        res.status(500).json({ error: 'Error interno al actualizar el perfil.' });
     }
 };
 
-// Eliminar cuenta del tendero (Soft Delete)
-exports.eliminarCuenta = async (req, res) => {
+// ==========================================
+// 3. CAMBIAR CONTRASEÑA
+// ==========================================
+exports.cambiarPassword = async (req, res) => {
     try {
-        const tendero = await Tendero.findByPk(req.usuario.id);
+        const tenderoId = req.usuario.id;
+        const { password_actual, password_nuevo } = req.body;
+
+        const tendero = await Tendero.findOne({ where: { id: tenderoId, activo: true } });
         if (!tendero) {
-            return res.status(404).json({
-                success: false,
-                message: 'Usuario no encontrado'
-            });
+            return res.status(404).json({ error: 'Tendero no encontrado.' });
         }
 
-        await tendero.update({ activo: false });
+        // Validar password actual
+        const esValida = await tendero.validarPassword(password_actual);
+        if (!esValida) {
+            return res.status(400).json({ error: 'La contraseña actual es incorrecta.' });
+        }
 
-        res.json({
-            success: true,
-            message: 'Cuenta eliminada (desactivada) exitosamente'
+        // Actualizar password (el hook del modelo lo encriptará)
+        await tendero.update({
+            password_hash: password_nuevo,
+            actualizado_en: new Date()
+        });
+
+        res.status(200).json({ msg: 'Contraseña actualizada exitosamente.' });
+    } catch (error) {
+        console.error('Error al cambiar contraseña:', error);
+        res.status(500).json({ error: 'Error interno al cambiar la contraseña.' });
+    }
+};
+
+// ==========================================
+// 4. OBTENER ESTADÍSTICAS DEL TENDERO
+// ==========================================
+exports.getEstadisticas = async (req, res) => {
+    try {
+        const tenderoId = req.usuario.id;
+
+        // Obtener la tienda del tendero
+        const tienda = await Tienda.findOne({ where: { tendero_id: tenderoId, activo: true } });
+        if (!tienda) {
+            return res.status(404).json({ error: 'No se encontró una tienda activa para este tendero.' });
+        }
+
+        const { Fiado, ClienteTienda, Producto, Alerta } = require('../models');
+
+        // Contar fiados activos
+        const totalFiados = await Fiado.count({
+            where: { tienda_id: tienda.id, estado: { [require('sequelize').Op.in]: ['pendiente', 'parcial'] } }
+        });
+
+        // Contar clientes vinculados
+        const totalClientes = await ClienteTienda.count({
+            where: { tienda_id: tienda.id, activo: true }
+        });
+
+        // Contar productos activos
+        const totalProductos = await Producto.count({
+            where: { tienda_id: tienda.id, activo: true }
+        });
+
+        // Contar alertas pendientes
+        const alertasPendientes = await Alerta.count({
+            where: { tienda_id: tienda.id, estado: 'pendiente' }
+        });
+
+        res.status(200).json({
+            msg: 'Estadísticas del tendero',
+            estadisticas: {
+                tienda_id: tienda.id,
+                tienda_nombre: tienda.nombre,
+                total_fiados_activos: totalFiados,
+                total_clientes: totalClientes,
+                total_productos: totalProductos,
+                alertas_pendientes: alertasPendientes
+            }
         });
     } catch (error) {
-        console.error('Error al eliminar cuenta:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error del servidor al eliminar la cuenta',
-            error: error.message
-        });
+        console.error('Error al obtener estadísticas:', error);
+        res.status(500).json({ error: 'Error interno al obtener estadísticas.' });
     }
 };
