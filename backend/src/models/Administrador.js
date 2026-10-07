@@ -1,58 +1,24 @@
-// src/models/Administrador.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 const bcrypt = require('bcryptjs');
 
 const Administrador = sequelize.define('Administrador', {
-    id: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
-        primaryKey: true
-    },
-    nombre: {
-        type: DataTypes.STRING(100),
-        allowNull: false
-    },
-    email: {
-        type: DataTypes.STRING(150),
-        allowNull: false,
-        unique: true,
-        validate: { isEmail: true }
-    },
-    password_hash: {
-        type: DataTypes.STRING(255),
-        allowNull: false
-    },
-    telefono: {
-        type: DataTypes.STRING(20),
-        allowNull: true
-    },
-    rol: {
-        type: DataTypes.STRING(50),
-        defaultValue: 'admin'
-    },
-    activo: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: true
-    },
-    ultimo_acceso: {
-        type: DataTypes.DATE,
-        allowNull: true
-    }
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    nombre: { type: DataTypes.STRING(100), allowNull: false },
+    email: { type: DataTypes.STRING(150), allowNull: false, unique: true, validate: { isEmail: true } },
+    password_hash: { type: DataTypes.STRING(255), allowNull: false },
+    telefono: { type: DataTypes.STRING(20), allowNull: true },
+    activo: { type: DataTypes.BOOLEAN, defaultValue: true },
+    creado_en: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
 }, {
     tableName: 'administradores',
+    timestamps: false,
     hooks: {
         beforeCreate: async (admin) => {
-            if (admin.password_hash) {
-                const salt = await bcrypt.genSalt(10);
-                admin.password_hash = await bcrypt.hash(admin.password_hash, salt);
-            }
+            if (admin.password_hash) admin.password_hash = await bcrypt.hash(admin.password_hash, 10);
         },
         beforeUpdate: async (admin) => {
-            if (admin.changed('password_hash')) {
-                const salt = await bcrypt.genSalt(10);
-                admin.password_hash = await bcrypt.hash(admin.password_hash, salt);
-            }
+            if (admin.changed('password_hash')) admin.password_hash = await bcrypt.hash(admin.password_hash, 10);
         }
     }
 });
