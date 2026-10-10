@@ -8,7 +8,7 @@ import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Power } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import iconConfig from '@/assets/icons/configuracion.png';
+import iconConfig from '@/assets/icons/sidebar/configuracion.png';
 
 const ProfileMenu = ({ onClose, onLogout }) => {
   const menuRef = useRef(null);

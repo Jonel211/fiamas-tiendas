@@ -14,7 +14,7 @@ import HeaderIconButton from './HeaderIconButton';
 import ProfileMenu from './ProfileMenu';
 import LogoutModal from '../Sidebar/LogoutModal';
 
-import iconBell from '@/assets/icons/avisos.png';
+import iconBell from '@/assets/icons/sidebar/avisos.png';
 import iconMoon from '@/assets/icons/dark.png';
 import iconSun from '@/assets/icons/light.png';
 import iconProfile from '@/assets/icons/logo.png';

@@ -51,10 +51,10 @@ const backupData = [
 
 const BackupTimeline = () => {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 p-6 hover:shadow-md transition-shadow">
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-sm font-semibold text-gray-700">Historial de respaldos</h3>
-        <span className="text-xs text-gray-400">{backupData.length} registros</span>
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Historial de respaldos</h3>
+        <span className="text-xs text-gray-400 dark:text-gray-500">{backupData.length} registros</span>
       </div>
       <div className="space-y-0">
         {backupData.map((backup) => (

@@ -18,8 +18,8 @@ const GrowthChartFilters = ({ range, onRangeChange, region, onRegionChange }) =>
             onClick={() => onRangeChange(r)}
             className={`px-4 py-1.5 text-[12.5px] font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
               isActive
-                ? 'bg-[#1D9492] text-white dark:bg-gradient-to-b dark:from-[#2EBFBB] dark:to-[#0B4A4A] dark:shadow-[0_0_14px_2px_rgba(46,196,182,0.55)]'
-                : 'bg-white/60 dark:bg-white/10 text-gray-600 dark:text-slate-400 hover:bg-white/80 dark:hover:bg-white/15'
+                ? 'bg-[#1D9492] text-white dark:bg-[#1D9492] shadow-sm'
+                : 'bg-white border border-gray-200 dark:border-white/10 dark:bg-[#242B3D] text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-white/5'
             }`}
           >
             {r}
@@ -27,6 +27,20 @@ const GrowthChartFilters = ({ range, onRangeChange, region, onRegionChange }) =>
           </button>
         );
       })}
+
+      {range === 'Rango Personalizado' && (
+        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
+          <input
+            type="date"
+            className="px-3 py-1.5 text-[12.5px] rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#242B3D] text-gray-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#1D9492]"
+          />
+          <span className="text-gray-400 text-sm">-</span>
+          <input
+            type="date"
+            className="px-3 py-1.5 text-[12.5px] rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#242B3D] text-gray-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#1D9492]"
+          />
+        </div>
+      )}
 
       <div className="ml-auto">
         <CustomSelect options={REGIONS} value={region} onChange={onRegionChange} />

@@ -42,14 +42,14 @@ const BackupStats = () => {
       {stats.map((stat) => (
         <div
           key={stat.id}
-          className="relative bg-white rounded-xl shadow-sm border border-gray-100 p-5 transition-all duration-200 hover:shadow-md hover:-translate-y-1 group"
+          className="relative bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 p-5 transition-all duration-200 hover:shadow-md hover:-translate-y-1 group"
         >
           {/* Borde superior gradiente */}
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-600 to-purple-500 rounded-t-xl" />
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-500">{stat.title}</p>
-              <p className="text-xl font-bold text-gray-800 mt-1">{stat.value}</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{stat.title}</p>
+              <p className="text-xl font-bold text-gray-800 dark:text-white mt-1">{stat.value}</p>
             </div>
             <div className={`p-2 rounded-lg ${stat.bgColor} group-hover:scale-110 transition-transform`}>
               <stat.icon className={`w-5 h-5 ${stat.color}`} />

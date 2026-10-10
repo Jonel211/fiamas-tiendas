@@ -3,7 +3,7 @@ import { Search, Filter } from 'lucide-react';
 
 const BackupFilters = () => {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
       <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
         {/* Buscador */}
         <div className="relative flex-1 sm:w-64">
@@ -11,14 +11,14 @@ const BackupFilters = () => {
           <input
             type="text"
             placeholder="Buscar por fecha o usuario..."
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
           />
         </div>
 
         {/* Filtro de estado */}
         <div className="relative">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <select className="pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all cursor-pointer">
+          <select className="pl-9 pr-8 py-2 text-sm border border-gray-200 dark:border-slate-600 rounded-lg appearance-none bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all cursor-pointer">
             <option value="">Todos los estados</option>
             <option value="success">Exitosos</option>
             <option value="failed">Fallidos</option>

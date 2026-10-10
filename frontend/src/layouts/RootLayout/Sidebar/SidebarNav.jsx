@@ -7,13 +7,13 @@
 
 import { NavLink } from 'react-router-dom';
 
-import iconDashboard from '@/assets/icons/dashboard.png';
-import iconTiendas from '@/assets/icons/tiendas.png';
-import iconTenderos from '@/assets/icons/tenderos.png';
-import iconBackups from '@/assets/icons/backups.png';
-import iconReportes from '@/assets/icons/reportes.png';
-import iconAvisos from '@/assets/icons/avisos.png';
-import iconConfig from '@/assets/icons/configuracion.png';
+import iconDashboard from '@/assets/icons/sidebar/dashboard.png';
+import iconTiendas from '@/assets/icons/sidebar/tiendas.png';
+import iconTenderos from '@/assets/icons/sidebar/tenderos.png';
+import iconBackups from '@/assets/icons/sidebar/backups.png';
+import iconReportes from '@/assets/icons/sidebar/reportes.png';
+import iconAvisos from '@/assets/icons/sidebar/avisos.png';
+import iconConfig from '@/assets/icons/sidebar/configuracion.png';
 
 const NAV_ITEMS = [
   { to: '/panel', label: 'Dashboard', icon: iconDashboard, end: true },
@@ -36,12 +36,10 @@ const SidebarNav = ({ isExpanded, onNavigate }) => {
           onClick={onNavigate}
           title={!isExpanded ? item.label : undefined}
           className={({ isActive }) =>
-            `flex items-center rounded-lg text-[13.5px] font-medium transition-all ${
-              isExpanded ? 'gap-3 px-3 py-2.5' : 'justify-center px-0 py-2.5'
-            } ${
-              isActive
-                ? 'bg-[#1D9492] text-white shadow-sm'
-                : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/5'
+            `flex items-center rounded-lg text-[13.5px] font-medium transition-all ${isExpanded ? 'gap-3 px-3 py-2.5' : 'justify-center px-0 py-2.5'
+            } ${isActive
+              ? 'bg-[#1D9492] text-white shadow-sm'
+              : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/5'
             }`
           }
         >
@@ -50,7 +48,9 @@ const SidebarNav = ({ isExpanded, onNavigate }) => {
             alt=""
             className="w-[22px] h-[22px] object-contain flex-shrink-0"
           />
-          {isExpanded && <span className="whitespace-nowrap">{item.label}</span>}
+          <span className={`inline-block whitespace-nowrap overflow-hidden transition-all duration-1000 ease-in-out ${isExpanded ? 'max-w-[200px] opacity-100' : 'max-w-0 opacity-0'}`}>
+            {item.label}
+          </span>
         </NavLink>
       ))}
     </nav>

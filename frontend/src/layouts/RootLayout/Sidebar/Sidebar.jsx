@@ -8,6 +8,7 @@
  */
 
 import { useState, useRef, useCallback } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import SidebarLogo from './SidebarLogo';
 import SidebarNav from './SidebarNav';
@@ -15,27 +16,27 @@ import SidebarUser from './SidebarUser';
 
 const Sidebar = ({ isMobile = false, isMobileOpen = false, onMobileClose }) => {
   const [isPinned, setIsPinned] = useState(true);
-  const [isHovered, setIsHovered] = useState(false);
   const sidebarRef = useRef(null);
 
   // En móvil: siempre expandido si está abierto
-  // En desktop: expandido si está pinneado o hover
-  const isExpanded = isMobile ? true : isPinned || isHovered;
+  // En desktop: expandido solo si está pinneado
+  const isExpanded = isMobile ? true : isPinned;
 
   const collapse = useCallback(() => {
-    if (!isMobile) setIsPinned(false);
-  }, [isMobile]);
+    // Solo colapsamos automáticamente si no está pinneado y estamos en móvil
+    // pero como el hover ya no está, solo dejamos la lógica para click outside si se desea,
+    // o simplemente no colapsamos.
+    if (!isMobile && !isPinned) setIsPinned(false);
+  }, [isMobile, isPinned]);
 
   const pin = useCallback(() => {
     if (isMobile) {
       onMobileClose?.();
-    } else {
-      setIsPinned(true);
     }
   }, [isMobile, onMobileClose]);
 
   useClickOutside(sidebarRef, () => {
-    if (!isMobile && !isMobileOpen) collapse();
+    if (!isMobile && !isMobileOpen && !isPinned) collapse();
   });
 
   return (
@@ -51,23 +52,31 @@ const Sidebar = ({ isMobile = false, isMobileOpen = false, onMobileClose }) => {
 
       <aside
         ref={sidebarRef}
-        onMouseEnter={() => !isMobile && setIsHovered(true)}
-        onMouseLeave={() => !isMobile && setIsHovered(false)}
         className={`
-          flex flex-col h-screen transition-all duration-300 ease-in-out
+          flex flex-col h-screen transition-all duration-1000 ease-in-out
           bg-white dark:bg-[#141824]
           border-r border-gray-200 dark:border-white/5
           ${isExpanded ? 'w-60' : 'w-20'}
-          ${
-            isMobile
-              ? `fixed top-0 left-0 z-50 ${
-                  isMobileOpen ? 'translate-x-0' : '-translate-x-full'
-                }`
-              : 'relative flex-shrink-0'
+          ${isMobile
+            ? `fixed top-0 left-0 z-50 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'
+            }`
+            : 'relative flex-shrink-0'
           }
         `}
       >
         <SidebarLogo isExpanded={isExpanded} />
+
+        {/* Toggle Button for Desktop */}
+        {!isMobile && (
+          <button
+            onClick={() => setIsPinned(!isPinned)}
+            title={isPinned ? 'Colapsar menú' : 'Fijar menú'}
+            className="absolute -right-3 top-8 w-6 h-6 bg-white dark:bg-[#1A1F2E] border border-gray-200 dark:border-gray-700 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-[#1D9492] dark:hover:text-[#1D9492] hover:scale-110 transition-all z-10 shadow-sm"
+          >
+            {isPinned ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+        )}
+
         <SidebarNav isExpanded={isExpanded} onNavigate={pin} />
         <SidebarUser isExpanded={isExpanded} />
       </aside>
