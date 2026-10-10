@@ -3,64 +3,90 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto'); // Para generar el qr_token
 
 
-// 1. LOGIN INTELIGENTE (v6)
-
+// ==========================================
+// 1. LOGIN INTELIGENTE (v6) - CORREGIDO Y SEGURO
+// ==========================================
 const login = async (req, res) => {
     try {
-        const { identificador, password } = req.body;
-        let usuarioEncontrado = null;
+        const { identificador, email, telefono, password } = req.body;
+
+        if (!password) {
+            return res.status(400).json({ error: 'Se requiere la contraseña.' });
+        }
+
+        const identificadorUsar = identificador || email || telefono;
+        if (!identificadorUsar) {
+            return res.status(400).json({ error: 'Se requiere email o teléfono para iniciar sesión.' });
+        }
+
+        let usuarioValido = false; // Bandera de seguridad
         let rol = null;
         let payload = {};
 
         // 1️ Intentar buscar como ADMINISTRADOR (usa email)
-        usuarioEncontrado = await Administrador.findOne({
-            where: { email: identificador, activo: true }
-        });
-        if (usuarioEncontrado && await usuarioEncontrado.validarPassword(password)) {
-            rol = 'admin';
-            payload = { id: usuarioEncontrado.id, nombre: usuarioEncontrado.nombre, rol };
+        if (identificadorUsar.includes('@')) {
+            const admin = await Administrador.findOne({
+                where: { email: identificadorUsar, activo: true }
+            });
+
+            // SOLO es válido si existe Y la contraseña coincide
+            if (admin && await admin.validarPassword(password)) {
+                usuarioValido = true;
+                rol = 'admin';
+                payload = { id: admin.id, nombre: admin.nombre, rol };
+            }
         }
 
-        // 2️ Intentar buscar como TENDERO (usa teléfono)
-        if (!usuarioEncontrado) {
-            usuarioEncontrado = await Tendero.findOne({
-                where: { telefono: identificador, activo: true }
+        // 2️ Intentar buscar como TENDERO (usa teléfono) - Solo si aún no es válido
+        if (!usuarioValido) {
+            const tendero = await Tendero.findOne({
+                where: { telefono: identificadorUsar, activo: true }
             });
-            if (usuarioEncontrado && await usuarioEncontrado.validarPassword(password)) {
+
+            if (tendero && await tendero.validarPassword(password)) {
+                usuarioValido = true;
                 rol = 'tendero';
                 const tienda = await Tienda.findOne({
-                    where: { tendero_id: usuarioEncontrado.id, activo: true }
+                    where: { tendero_id: tendero.id, activo: true }
                 });
+
                 payload = {
-                    id: usuarioEncontrado.id,
-                    nombre: usuarioEncontrado.nombres,
+                    id: tendero.id,
+                    nombre: tendero.nombres,
                     rol,
                     tienda_id: tienda ? tienda.id : null
                 };
             }
         }
 
-        // 3️ Intentar buscar como CLIENTE (usa teléfono)
-        if (!usuarioEncontrado) {
-            usuarioEncontrado = await Cliente.findOne({
-                where: { telefono: identificador, activo: true }
+        // 3️ Intentar buscar como CLIENTE (usa teléfono) - Solo si aún no es válido
+        if (!usuarioValido) {
+            const cliente = await Cliente.findOne({
+                where: { telefono: identificadorUsar, activo: true }
             });
-            if (usuarioEncontrado && usuarioEncontrado.password_hash && await usuarioEncontrado.validarPassword(password)) {
+
+            if (cliente && cliente.password_hash && await cliente.validarPassword(password)) {
+                usuarioValido = true;
                 rol = 'cliente';
-                payload = { id: usuarioEncontrado.id, nombre: usuarioEncontrado.nombres, rol };
+                payload = { id: cliente.id, nombre: cliente.nombres, rol };
             }
         }
 
-        if (!usuarioEncontrado) {
-            return res.status(401).json({ error: 'Credenciales inválidas o usuario inactivo.' });
+        // 4️ VALIDACIÓN FINAL: Si la bandera no se activó, las credenciales son incorrectas
+        if (!usuarioValido) {
+            return res.status(401).json({
+                error: 'Credenciales inválidas. Verifica tu email/teléfono y contraseña.'
+            });
         }
 
+        // 5️ Generar el Token JWT (Solo si usuarioValido es true)
         const token = jwt.sign(
             payload,
             process.env.JWT_SECRET || 'tu_clave_secreta_temporal',
             { expiresIn: '24h' }
         );
 
+        // 6️ Responder al frontend
         res.status(200).json({
             msg: 'Inicio de sesión exitoso',
             token,
@@ -71,6 +97,7 @@ const login = async (req, res) => {
                 tienda_id: payload.tienda_id || null
             }
         });
+
     } catch (error) {
         console.error('Error en login:', error);
         res.status(500).json({ error: 'Error interno del servidor al intentar iniciar sesión.' });
