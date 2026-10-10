@@ -21,74 +21,47 @@ exports.login = async (identifier, password, rolRequerido) => {
     let rolEncontrado = rolRequerido;
 
     // ------------------------------------------
-    // ADMIN: sigue usando email (web)
+    // ADMIN: usa email (web)
     // ------------------------------------------
     if (rolRequerido === 'admin') {
-        usuario = await Administrador.findOne({ where: { email: identifier } });
+        usuario = await Administrador.findOne({ where: { email: identifier, activo: true } });
     }
-
     // ------------------------------------------
-    // TENDERO: busca por DNI, teléfono o email (app)
+    // TENDERO: busca exclusivamente por teléfono (app)
     // ------------------------------------------
     else if (rolRequerido === 'tendero') {
         usuario = await Tendero.findOne({
-            where: {
-                [Op.or]: [
-                    { email: identifier },
-                    { dni: identifier },
-                    { telefono: identifier },
-                ],
-            },
+            where: { telefono: identifier, activo: true }
         });
     }
-
     // ------------------------------------------
-    // CLIENTE: busca por email o teléfono
+    // CLIENTE: busca exclusivamente por teléfono
     // ------------------------------------------
     else if (rolRequerido === 'cliente') {
         usuario = await Cliente.findOne({
-            where: {
-                [Op.or]: [
-                    { email: identifier },
-                    { telefono: identifier },
-                ],
-            },
+            where: { telefono: identifier, activo: true }
         });
     }
-
     // ------------------------------------------
-    // SIN ROL: búsqueda en cascada (admin → tendero → cliente)
+    // SIN ROL: búsqueda inteligente en cascada
     // ------------------------------------------
     else {
-        // Primero busca admin por email
-        usuario = await Administrador.findOne({ where: { email: identifier } });
-        if (usuario) {
-            rolEncontrado = 'admin';
-        } else {
-            // Luego busca tendero por email, DNI o teléfono
-            usuario = await Tendero.findOne({
-                where: {
-                    [Op.or]: [
-                        { email: identifier },
-                        { dni: identifier },
-                        { telefono: identifier },
-                    ],
-                },
-            });
-            if (usuario) {
-                rolEncontrado = 'tendero';
-            } else {
-                // Finalmente busca cliente por email o teléfono
-                usuario = await Cliente.findOne({
-                    where: {
-                        [Op.or]: [
-                            { email: identifier },
-                            { telefono: identifier },
-                        ],
-                    },
-                });
-                if (usuario) rolEncontrado = 'cliente';
-            }
+        // 1. Si parece un email, busca en Admin
+        if (identifier.includes('@')) {
+            usuario = await Administrador.findOne({ where: { email: identifier, activo: true } });
+            if (usuario) rolEncontrado = 'admin';
+        }
+
+        // 2. Si no es admin, busca en Tendero por teléfono
+        if (!usuario) {
+            usuario = await Tendero.findOne({ where: { telefono: identifier, activo: true } });
+            if (usuario) rolEncontrado = 'tendero';
+        }
+
+        // 3. Si no es tendero, busca en Cliente por teléfono
+        if (!usuario) {
+            usuario = await Cliente.findOne({ where: { telefono: identifier, activo: true } });
+            if (usuario) rolEncontrado = 'cliente';
         }
     }
 
@@ -103,16 +76,12 @@ exports.login = async (identifier, password, rolRequerido) => {
         throw new Error('Usuario inactivo');
     }
 
-    if (rolEncontrado === 'cliente' && usuario.bloqueado) {
-        throw new Error('Usuario bloqueado');
-    }
-
     const isMatch = await usuario.validarPassword(password);
     if (!isMatch) {
         throw new Error('Credenciales inválidas');
     }
 
-    // Actualizar último acceso
+    // Actualizar último acceso (si el campo existe en el modelo)
     if (usuario.ultimo_acceso !== undefined) {
         usuario.ultimo_acceso = new Date();
         await usuario.save({ hooks: false });
@@ -124,8 +93,8 @@ exports.login = async (identifier, password, rolRequerido) => {
         token,
         usuario: {
             id: usuario.id,
-            nombre: usuario.nombre || usuario.nombres,
-            email: usuario.email,
+            nombre: usuario.nombre || `${usuario.nombres} ${usuario.apellidos}`.trim(),
+            telefono: usuario.telefono,
             rol: rolEncontrado,
         },
     };
@@ -150,47 +119,41 @@ exports.registrarAdministrador = async (datos) => {
 
 // ==========================================
 // REGISTRO: Tendero (app)
-// El email se auto-genera desde el DNI si no viene
+// SIN email, solo DNI y Teléfono
 // ==========================================
 exports.registrarTendero = async (datos) => {
-    // Si no viene email, lo generamos a partir del DNI
-    const email = datos.email || `${datos.dni}@tendero.fiamas.app`;
-
-    const existeEmail = await Tendero.findOne({ where: { email } });
-    if (existeEmail) throw new Error('El email ya está registrado');
-
     const existeDni = await Tendero.findOne({ where: { dni: datos.dni } });
     if (existeDni) throw new Error('El DNI ya está registrado');
+
+    const existeTelefono = await Tendero.findOne({ where: { telefono: datos.telefono } });
+    if (existeTelefono) throw new Error('El número de teléfono ya está registrado');
 
     const tendero = await Tendero.create({
         dni: datos.dni,
         nombres: datos.nombres,
         apellidos: datos.apellidos,
-        email: email,
         password_hash: datos.password,
         telefono: datos.telefono,
     });
 
-    return { id: tendero.id, email: tendero.email };
+    return { id: tendero.id, telefono: tendero.telefono };
 };
 
 // ==========================================
 // REGISTRO: Cliente
+// SIN email, solo Teléfono
 // ==========================================
 exports.registrarCliente = async (datos) => {
-    const existeEmail = await Cliente.findOne({ where: { email: datos.email } });
-    if (existeEmail && datos.email) throw new Error('El email ya está registrado');
+    const existeTelefono = await Cliente.findOne({ where: { telefono: datos.telefono } });
+    if (existeTelefono) throw new Error('El número de teléfono ya está registrado');
 
     const cliente = await Cliente.create({
-        tienda_id: datos.tienda_id || null,
         nombres: datos.nombres,
         apellidos: datos.apellidos,
-        email: datos.email,
         telefono: datos.telefono,
-        password_hash: datos.password,
-        dni: datos.dni,
-        direccion: datos.direccion,
+        password_hash: datos.password || null,
+        direccion: datos.direccion || null,
     });
 
-    return { id: cliente.id, email: cliente.email };
+    return { id: cliente.id, telefono: cliente.telefono };
 };
