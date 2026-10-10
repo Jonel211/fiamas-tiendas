@@ -1,0 +1,10 @@
+/* src/components/modules/Landing/Team/TeamSection.css */
+
+.team { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+
+@media (max-width: 980px) {
+  .team { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 760px) {
+  .team { grid-template-columns: 1fr; }
+}
