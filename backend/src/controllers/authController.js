@@ -3,89 +3,82 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
 // ==========================================
-// 1. LOGIN INTELIGENTE (v6) - CORREGIDO
+// 1. LOGIN INTELIGENTE (v6) - CORREGIDO Y SEGURO
 // ==========================================
 const login = async (req, res) => {
     try {
-        // Acepta tanto "identificador" como "email" o "telefono" desde el frontend
         const { identificador, email, telefono, password } = req.body;
 
-        // Validar que tengamos contraseña
         if (!password) {
             return res.status(400).json({ error: 'Se requiere la contraseña.' });
         }
 
-        // Determinar el identificador (email para admin, teléfono para tendero/cliente)
         const identificadorUsar = identificador || email || telefono;
-
         if (!identificadorUsar) {
             return res.status(400).json({ error: 'Se requiere email o teléfono para iniciar sesión.' });
         }
 
-        let usuarioEncontrado = null;
+        let usuarioValido = false; // Bandera de seguridad
         let rol = null;
         let payload = {};
 
         // 1️ Intentar buscar como ADMINISTRADOR (usa email)
-        // Solo buscar si el identificador parece un email (contiene @)
         if (identificadorUsar.includes('@')) {
-            usuarioEncontrado = await Administrador.findOne({
+            const admin = await Administrador.findOne({
                 where: { email: identificadorUsar, activo: true }
             });
 
-            if (usuarioEncontrado && await usuarioEncontrado.validarPassword(password)) {
+            // SOLO es válido si existe Y la contraseña coincide
+            if (admin && await admin.validarPassword(password)) {
+                usuarioValido = true;
                 rol = 'admin';
-                payload = {
-                    id: usuarioEncontrado.id,
-                    nombre: usuarioEncontrado.nombre,
-                    rol
-                };
+                payload = { id: admin.id, nombre: admin.nombre, rol };
             }
         }
 
-        // 2️ Intentar buscar como TENDERO (usa teléfono)
-        if (!usuarioEncontrado) {
-            usuarioEncontrado = await Tendero.findOne({
+        // 2️ Intentar buscar como TENDERO (usa teléfono) - Solo si aún no es válido
+        if (!usuarioValido) {
+            const tendero = await Tendero.findOne({
                 where: { telefono: identificadorUsar, activo: true }
             });
 
-            if (usuarioEncontrado && await usuarioEncontrado.validarPassword(password)) {
+            if (tendero && await tendero.validarPassword(password)) {
+                usuarioValido = true;
                 rol = 'tendero';
                 const tienda = await Tienda.findOne({
-                    where: { tendero_id: usuarioEncontrado.id, activo: true }
+                    where: { tendero_id: tendero.id, activo: true }
                 });
 
                 payload = {
-                    id: usuarioEncontrado.id,
-                    nombre: usuarioEncontrado.nombres,
+                    id: tendero.id,
+                    nombre: tendero.nombres,
                     rol,
                     tienda_id: tienda ? tienda.id : null
                 };
             }
         }
 
-        // 3️ Intentar buscar como CLIENTE (usa teléfono)
-        if (!usuarioEncontrado) {
-            usuarioEncontrado = await Cliente.findOne({
+        // 3️ Intentar buscar como CLIENTE (usa teléfono) - Solo si aún no es válido
+        if (!usuarioValido) {
+            const cliente = await Cliente.findOne({
                 where: { telefono: identificadorUsar, activo: true }
             });
 
-            if (usuarioEncontrado && usuarioEncontrado.password_hash && await usuarioEncontrado.validarPassword(password)) {
+            if (cliente && cliente.password_hash && await cliente.validarPassword(password)) {
+                usuarioValido = true;
                 rol = 'cliente';
-                payload = {
-                    id: usuarioEncontrado.id,
-                    nombre: usuarioEncontrado.nombres,
-                    rol
-                };
+                payload = { id: cliente.id, nombre: cliente.nombres, rol };
             }
         }
 
-        // 4️ Si no se encontró en ninguna tabla
-        if (!usuarioEncontrado) {
-            return res.status(401).json({ error: 'Credenciales inválidas o usuario inactivo.' });
+        // 4️ VALIDACIÓN FINAL: Si la bandera no se activó, las credenciales son incorrectas
+        if (!usuarioValido) {
+            return res.status(401).json({
+                error: 'Credenciales inválidas. Verifica tu email/teléfono y contraseña.'
+            });
         }
 
-        // 5️ Generar el Token JWT
+        // 5️ Generar el Token JWT (Solo si usuarioValido es true)
         const token = jwt.sign(
             payload,
             process.env.JWT_SECRET || 'tu_clave_secreta_temporal',
