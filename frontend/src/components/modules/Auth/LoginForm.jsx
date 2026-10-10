@@ -1,13 +1,3 @@
-/**
- * LoginForm
- * Formulario de inicio de sesión.
- * Compuesto por:
- * - LoginFormHeader (logo + título)
- * - FormField (inputs)
- * - LoginFormOptions (remember + forgot)
- * - LoginSubmitButton (botón)
- */
-
 import { Mail, Lock } from 'lucide-react';
 import { useLoginForm } from '@/hooks/useLoginForm';
 import FormField from '../../ui/FormField';

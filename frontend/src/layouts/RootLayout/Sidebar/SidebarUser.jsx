@@ -16,7 +16,7 @@ const SidebarUser = ({ isExpanded }) => {
   const handleConfirm = () => {
     setShowModal(false);
     logout();
-    navigate('/login');
+    navigate('/auth/login');
   };
 
   return (
