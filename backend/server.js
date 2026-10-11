@@ -51,12 +51,9 @@ const startServer = async () => {
         // 4. Iniciar servidor
         app.listen(PORT, '0.0.0.0', () => {
             console.log('');
-            console.log('======================================');
-            console.log('       FIAMAS - API BACKEND');
-            console.log('======================================');
+            console.log('FIAMAS - API BACKEND');
             console.log(`Local:    http://localhost:${PORT}`);
             console.log(`Red:      http://${localIP}:${PORT}`);
-            console.log('======================================');
             console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
             console.log('');
         });
