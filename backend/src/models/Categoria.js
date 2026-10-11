@@ -1,4 +1,3 @@
-// src/models/Categoria.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
@@ -22,22 +21,21 @@ const Categoria = sequelize.define('Categoria', {
     },
     icono: {
         type: DataTypes.STRING(50),
-        allowNull: true
+        allowNull: true,
+        comment: 'Nombre de un ícono predefinido: milk, bread, broom, etc.'
     },
     color: {
         type: DataTypes.STRING(7),
-        allowNull: true
-    },
-    orden: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0
+        allowNull: true,
+        comment: 'Código hex para el chip de la categoría: #1D9492'
     },
     activo: {
         type: DataTypes.BOOLEAN,
         defaultValue: true
     }
 }, {
-    tableName: 'categorias'
+    tableName: 'categorias',
+    timestamps: false
 });
 
 module.exports = Categoria;

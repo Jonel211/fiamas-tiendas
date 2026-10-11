@@ -1,56 +1,87 @@
-const authService = require('../services/authService'); // Importar el servicio de autenticación
+const authService = require('../services/authService');
 
-// Controlador de inicio de sesion de todos los usuarios
-exports.login = async (req, res) => {
+// 1. LOGIN
+const login = async (req, res, next) => {
     try {
-        const { email, password, rol } = req.body;
+        const { identificador, email, telefono, password, rol } = req.body;
+        const idFinal = identificador || email || telefono;
 
-        if (!email || !password) {
-            return res.status(400).json({ error: 'Por favor, proporciona email y contraseña' });
-        }
+        const resultado = await authService.login({
+            identificador: idFinal,
+            password,
+            rolRequerido: rol
+        });
 
-        const resultado = await authService.login(email, password, rol);
-
-        res.json({
-            mensaje: 'Inicio de sesión exitoso',
+        res.status(200).json({
+            msg: 'Inicio de sesión exitoso',
             ...resultado
         });
     } catch (error) {
-        console.error('Error en el login:', error);
-        const code = error.message.includes('inválidas') || error.message.includes('inactivo') || error.message.includes('bloqueado') ? 401 : 500;
-        res.status(code).json({ error: error.message || 'Error en el servidor al intentar iniciar sesión' });
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ error: error.message });
+        }
+        console.error('Error en login:', error);
+        res.status(500).json({ error: 'Error interno del servidor al intentar iniciar sesión.' });
     }
 };
 
-// Controlador de registro de administradores
-exports.registerAdmin = async (req, res) => {
+// 2. REGISTRO DE ADMINISTRADOR
+const registerAdmin = async (req, res, next) => {
     try {
-        const result = await authService.registrarAdministrador(req.body);
-        res.status(201).json({ mensaje: 'Administrador registrado con éxito', data: result });
+        const resultado = await authService.registrarAdministrador(req.body);
+
+        res.status(201).json({
+            msg: 'Administrador registrado exitosamente',
+            ...resultado
+        });
     } catch (error) {
-        console.error('Error registrando admin:', error);
-        res.status(400).json({ error: error.message });
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ error: error.message });
+        }
+        console.error('Error al registrar admin:', error);
+        res.status(500).json({ error: 'Error al registrar administrador', detalle: error.message });
     }
 };
 
-// Controlador de registro de tenderos
-exports.registerTendero = async (req, res) => {
+// 3. REGISTRO DE TENDERO
+const registerTendero = async (req, res, next) => {
     try {
-        const result = await authService.registrarTendero(req.body);
-        res.status(201).json({ mensaje: 'Tendero registrado con éxito', data: result });
+        const resultado = await authService.registrarTendero(req.body);
+
+        res.status(201).json({
+            msg: 'Tendero y tienda registrados exitosamente',
+            ...resultado
+        });
     } catch (error) {
-        console.error('Error registrando tendero:', error);
-        res.status(400).json({ error: error.message });
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ error: error.message });
+        }
+        console.error('Error al registrar tendero:', error);
+        res.status(500).json({ error: 'Error al registrar tendero', detalle: error.message });
     }
 };
 
-// Controlador de registro de clientes
-exports.registerCliente = async (req, res) => {
+// 4. REGISTRO DE CLIENTE
+const registerCliente = async (req, res, next) => {
     try {
-        const result = await authService.registrarCliente(req.body);
-        res.status(201).json({ mensaje: 'Cliente registrado con éxito', data: result });
+        const resultado = await authService.registrarCliente(req.body);
+
+        res.status(201).json({
+            msg: 'Cliente registrado exitosamente. Ahora puede vincularse a una tienda.',
+            ...resultado
+        });
     } catch (error) {
-        console.error('Error registrando cliente:', error);
-        res.status(400).json({ error: error.message });
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ error: error.message });
+        }
+        console.error('Error al registrar cliente:', error);
+        res.status(500).json({ error: 'Error al registrar cliente', detalle: error.message });
     }
+};
+
+module.exports = {
+    login,
+    registerAdmin,
+    registerTendero,
+    registerCliente
 };

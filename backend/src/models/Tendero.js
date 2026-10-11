@@ -1,4 +1,3 @@
-// src/models/Tendero.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 const bcrypt = require('bcryptjs');
@@ -22,65 +21,44 @@ const Tendero = sequelize.define('Tendero', {
         type: DataTypes.STRING(100),
         allowNull: false
     },
-    email: {
-        type: DataTypes.STRING(150),
-        allowNull: false,
-        unique: true,
-        validate: { isEmail: true }
-    },
     password_hash: {
         type: DataTypes.STRING(255),
         allowNull: false
     },
     telefono: {
         type: DataTypes.STRING(20),
-        allowNull: false
+        allowNull: false,
+        unique: true
     },
-    fecha_nacimiento: {
-        type: DataTypes.DATEONLY,
-        allowNull: true
-    },
-    direccion: {
-        type: DataTypes.TEXT,
-        allowNull: true
-    },
-    foto_url: {
+    foto_perfil_url: {
         type: DataTypes.STRING(500),
-        allowNull: true
+        allowNull: true,
+        comment: 'Foto de perfil del tendero'
     },
     activo: {
         type: DataTypes.BOOLEAN,
         defaultValue: true
     },
-    verificado: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: false
-    },
-    ultimo_acceso: {
+    creado_en: {
         type: DataTypes.DATE,
-        allowNull: true
+        defaultValue: DataTypes.NOW
     },
-    preferencias: {
-        type: DataTypes.JSONB,
-        defaultValue: {}
-    },
-    configuracion_notificaciones: {
-        type: DataTypes.JSONB,
-        defaultValue: {}
+    actualizado_en: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
     }
 }, {
     tableName: 'tenderos',
+    timestamps: false,
     hooks: {
         beforeCreate: async (tendero) => {
             if (tendero.password_hash) {
-                const salt = await bcrypt.genSalt(10);
-                tendero.password_hash = await bcrypt.hash(tendero.password_hash, salt);
+                tendero.password_hash = await bcrypt.hash(tendero.password_hash, 10);
             }
         },
         beforeUpdate: async (tendero) => {
             if (tendero.changed('password_hash')) {
-                const salt = await bcrypt.genSalt(10);
-                tendero.password_hash = await bcrypt.hash(tendero.password_hash, salt);
+                tendero.password_hash = await bcrypt.hash(tendero.password_hash, 10);
             }
         }
     }

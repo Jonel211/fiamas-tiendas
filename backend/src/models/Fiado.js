@@ -1,4 +1,3 @@
-// src/models/Fiado.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
@@ -39,47 +38,27 @@ const Fiado = sequelize.define('Fiado', {
     },
     monto_pagado: {
         type: DataTypes.DECIMAL(10, 2),
-        defaultValue: 0
-    },
-    saldo_pendiente: {
-        type: DataTypes.DECIMAL(10, 2),
-        allowNull: false
+        defaultValue: 0.00
     },
     estado: {
         type: DataTypes.STRING(20),
         defaultValue: 'pendiente'
     },
-    dias_mora: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0
-    },
-    productos: {
-        type: DataTypes.JSONB,
-        defaultValue: [],
-        allowNull: false
-    },
     notas: {
         type: DataTypes.TEXT,
         allowNull: true
     },
-    firma_digital_url: {
-        type: DataTypes.STRING(500),
-        allowNull: true
+    creado_en: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
     },
-    foto_ticket_url: {
-        type: DataTypes.STRING(500),
-        allowNull: true
-    },
-    creado_por: {
-        type: DataTypes.UUID,
-        allowNull: true
-    },
-    modificado_por: {
-        type: DataTypes.UUID,
-        allowNull: true
+    actualizado_en: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
     }
 }, {
     tableName: 'fiados',
+    timestamps: false,
     hooks: {
         beforeCreate: (fiado) => {
             if (!fiado.numero_fiado) {

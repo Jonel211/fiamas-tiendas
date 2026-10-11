@@ -1,4 +1,3 @@
-// src/models/ScoringHistorial.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
@@ -40,36 +39,13 @@ const ScoringHistorial = sequelize.define('ScoringHistorial', {
         type: DataTypes.STRING(100),
         allowNull: false
     },
-    descripcion: {
-        type: DataTypes.TEXT,
-        allowNull: true
-    },
-    dias_promedio_pago_anterior: {
-        type: DataTypes.DECIMAL(5, 2),
-        allowNull: true
-    },
-    dias_promedio_pago_nuevo: {
-        type: DataTypes.DECIMAL(5, 2),
-        allowNull: true
-    },
-    total_fiados_anterior: {
-        type: DataTypes.INTEGER,
-        allowNull: true
-    },
-    total_fiados_nuevo: {
-        type: DataTypes.INTEGER,
-        allowNull: true
-    },
-    total_mora_anterior: {
-        type: DataTypes.INTEGER,
-        allowNull: true
-    },
-    total_mora_nuevo: {
-        type: DataTypes.INTEGER,
-        allowNull: true
+    fecha_calculo: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
     }
 }, {
-    tableName: 'scoring_historial'
+    tableName: 'scoring_historial',
+    timestamps: false
 });
 
 module.exports = ScoringHistorial;

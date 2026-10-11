@@ -27,7 +27,7 @@ export const apiRequest = async (endpoint, options = {}) => {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || "Credenciales incorrectas");
+      throw new Error(data.error || data.message || "Credenciales incorrectas");
     }
 
     return data;

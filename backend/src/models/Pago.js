@@ -1,4 +1,3 @@
-// src/models/Pago.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
@@ -8,21 +7,25 @@ const Pago = sequelize.define('Pago', {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true
     },
-    fiado_id: {
-        type: DataTypes.UUID,
-        allowNull: false
-    },
     tienda_id: {
         type: DataTypes.UUID,
-        allowNull: false
+        allowNull: false,
+        comment: 'Tienda donde se realiza el pago'
     },
     cliente_id: {
         type: DataTypes.UUID,
-        allowNull: false
+        allowNull: false,
+        comment: 'Cliente que realiza el pago'
     },
-    tendero_id: {
+    fiado_id: {
         type: DataTypes.UUID,
-        allowNull: false
+        allowNull: true,
+        comment: 'Fiado específico o NULL si es abono a saldo global'
+    },
+    registrado_por: {
+        type: DataTypes.UUID,
+        allowNull: false,
+        comment: 'Tendero que registró el cobro'
     },
     numero_pago: {
         type: DataTypes.STRING(50),
@@ -39,7 +42,8 @@ const Pago = sequelize.define('Pago', {
     },
     tipo_pago: {
         type: DataTypes.STRING(20),
-        allowNull: false
+        allowNull: false,
+        comment: 'efectivo | transferencia | yape | plin | tarjeta | deposito'
     },
     referencia: {
         type: DataTypes.STRING(100),
@@ -52,17 +56,10 @@ const Pago = sequelize.define('Pago', {
     notas: {
         type: DataTypes.TEXT,
         allowNull: true
-    },
-    recibo_url: {
-        type: DataTypes.STRING(500),
-        allowNull: true
-    },
-    creado_por: {
-        type: DataTypes.UUID,
-        allowNull: true
     }
 }, {
     tableName: 'pagos',
+    timestamps: false,
     hooks: {
         beforeCreate: (pago) => {
             if (!pago.numero_pago) {

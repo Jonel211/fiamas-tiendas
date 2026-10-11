@@ -1,4 +1,3 @@
-// src/models/Administrador.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 const bcrypt = require('bcryptjs');
@@ -27,32 +26,25 @@ const Administrador = sequelize.define('Administrador', {
         type: DataTypes.STRING(20),
         allowNull: true
     },
-    rol: {
-        type: DataTypes.STRING(50),
-        defaultValue: 'admin'
-    },
     activo: {
         type: DataTypes.BOOLEAN,
         defaultValue: true
     },
-    ultimo_acceso: {
+    creado_en: {
         type: DataTypes.DATE,
-        allowNull: true
+        defaultValue: DataTypes.NOW
     }
 }, {
     tableName: 'administradores',
+    timestamps: false,
     hooks: {
         beforeCreate: async (admin) => {
-            if (admin.password_hash) {
-                const salt = await bcrypt.genSalt(10);
-                admin.password_hash = await bcrypt.hash(admin.password_hash, salt);
-            }
+            if (admin.password_hash)
+                admin.password_hash = await bcrypt.hash(admin.password_hash, 10);
         },
         beforeUpdate: async (admin) => {
-            if (admin.changed('password_hash')) {
-                const salt = await bcrypt.genSalt(10);
-                admin.password_hash = await bcrypt.hash(admin.password_hash, salt);
-            }
+            if (admin.changed('password_hash'))
+                admin.password_hash = await bcrypt.hash(admin.password_hash, 10);
         }
     }
 });

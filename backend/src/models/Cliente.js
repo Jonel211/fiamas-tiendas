@@ -1,4 +1,3 @@
-// src/models/Cliente.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 const bcrypt = require('bcryptjs');
@@ -9,9 +8,10 @@ const Cliente = sequelize.define('Cliente', {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true
     },
-    tienda_id: {
-        type: DataTypes.UUID,
-        allowNull: true // Se deja true para que pueda haber clientes sin tienda
+    telefono: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        unique: true
     },
     nombres: {
         type: DataTypes.STRING(100),
@@ -21,91 +21,24 @@ const Cliente = sequelize.define('Cliente', {
         type: DataTypes.STRING(100),
         allowNull: false
     },
-    dni: {
-        type: DataTypes.STRING(20),
-        allowNull: true
-    },
-    telefono: {
-        type: DataTypes.STRING(20),
-        allowNull: false
-    },
-    email: {
-        type: DataTypes.STRING(150),
-        allowNull: true
-    },
     password_hash: {
         type: DataTypes.STRING(255),
         allowNull: true
     },
-    direccion: {
-        type: DataTypes.TEXT,
-        allowNull: true
-    },
-    fecha_nacimiento: {
-        type: DataTypes.DATEONLY,
-        allowNull: true
-    },
-    foto_url: {
+    foto_perfil_url: {
         type: DataTypes.STRING(500),
-        allowNull: true
+        allowNull: true,
+        comment: 'Foto de perfil o avatar del cliente'
     },
-    limite_credito: {
-        type: DataTypes.DECIMAL(10, 2),
-        defaultValue: 500.00
-    },
-    credito_disponible: {
-        type: DataTypes.DECIMAL(10, 2),
-        defaultValue: 500.00
-    },
-    saldo_actual: {
-        type: DataTypes.DECIMAL(10, 2),
-        defaultValue: 0.00
-    },
-    score_pagador: {
-        type: DataTypes.INTEGER,
-        defaultValue: 100
-    },
-    categoria_pagador: {
-        type: DataTypes.STRING(20),
-        defaultValue: 'nuevo'
-    },
-    total_fiados: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0
-    },
-    total_pagos: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0
-    },
-    total_mora: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0
-    },
-    dias_promedio_pago: {
-        type: DataTypes.DECIMAL(5, 2),
-        defaultValue: 0
-    },
-    ultimo_fiado: {
-        type: DataTypes.DATE,
-        allowNull: true
-    },
-    ultimo_pago: {
-        type: DataTypes.DATE,
-        allowNull: true
-    },
-    dias_gracia: {
-        type: DataTypes.INTEGER,
-        defaultValue: 7
-    },
-    acepta_notificaciones: {
+    telefono_verificado: {
         type: DataTypes.BOOLEAN,
-        defaultValue: true
+        defaultValue: false
     },
-    canal_preferido: {
-        type: DataTypes.STRING(20),
-        defaultValue: 'whatsapp'
+    ultimo_acceso: {
+        type: DataTypes.DATE,
+        allowNull: true
     },
-    notas: {
+    direccion: {
         type: DataTypes.TEXT,
         allowNull: true
     },
@@ -113,27 +46,26 @@ const Cliente = sequelize.define('Cliente', {
         type: DataTypes.BOOLEAN,
         defaultValue: true
     },
-    bloqueado: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: false
+    creado_en: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
     },
-    motivo_bloqueo: {
-        type: DataTypes.TEXT,
-        allowNull: true
+    actualizado_en: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
     }
 }, {
     tableName: 'clientes',
+    timestamps: false,
     hooks: {
         beforeCreate: async (cliente) => {
             if (cliente.password_hash) {
-                const salt = await bcrypt.genSalt(10);
-                cliente.password_hash = await bcrypt.hash(cliente.password_hash, salt);
+                cliente.password_hash = await bcrypt.hash(cliente.password_hash, 10);
             }
         },
         beforeUpdate: async (cliente) => {
             if (cliente.changed('password_hash') && cliente.password_hash) {
-                const salt = await bcrypt.genSalt(10);
-                cliente.password_hash = await bcrypt.hash(cliente.password_hash, salt);
+                cliente.password_hash = await bcrypt.hash(cliente.password_hash, 10);
             }
         }
     }

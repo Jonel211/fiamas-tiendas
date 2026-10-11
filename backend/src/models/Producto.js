@@ -1,4 +1,3 @@
-// src/models/Producto.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
@@ -14,7 +13,7 @@ const Producto = sequelize.define('Producto', {
     },
     categoria_id: {
         type: DataTypes.UUID,
-        allowNull: true
+        allowNull: false
     },
     nombre: {
         type: DataTypes.STRING(200),
@@ -24,80 +23,57 @@ const Producto = sequelize.define('Producto', {
         type: DataTypes.TEXT,
         allowNull: true
     },
-    sku: {
-        type: DataTypes.STRING(50),
-        allowNull: true
+    imagen_url: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+        comment: 'URL de la imagen del producto'
     },
     codigo_barras: {
         type: DataTypes.STRING(50),
         allowNull: true,
         unique: true
     },
-    tipo_codigo: {
+    tipo_venta: {
         type: DataTypes.STRING(20),
-        defaultValue: 'EAN13'
+        allowNull: false,
+        defaultValue: 'unidad',
+        comment: 'unidad | peso'
     },
-    precio_compra: {
-        type: DataTypes.DECIMAL(10, 2),
-        defaultValue: 0
+    unidad_medida: {
+        type: DataTypes.STRING(10),
+        allowNull: false,
+        defaultValue: 'unidad',
+        comment: 'unidad | kg | g | L | ml'
     },
     precio_venta: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false
     },
-    precio_mayorista: {
-        type: DataTypes.DECIMAL(10, 2),
-        allowNull: true
-    },
-    cantidad_mayorista: {
-        type: DataTypes.INTEGER,
-        allowNull: true
-    },
     stock_actual: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        defaultValue: null
     },
     stock_minimo: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0
-    },
-    stock_maximo: {
-        type: DataTypes.INTEGER,
-        allowNull: true
-    },
-    unidad_medida: {
-        type: DataTypes.STRING(20),
-        defaultValue: 'unidad'
-    },
-    permite_fiado: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: true
-    },
-    requiere_stock: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: true
-    },
-    es_perecible: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: false
-    },
-    fecha_vencimiento: {
-        type: DataTypes.DATEONLY,
-        allowNull: true
-    },
-    imagen_url: {
-        type: DataTypes.STRING(500),
-        allowNull: true
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        defaultValue: null
     },
     activo: {
         type: DataTypes.BOOLEAN,
         defaultValue: true
+    },
+    creado_en: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
+    },
+    actualizado_en: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
     }
 }, {
     tableName: 'productos',
-    // Esto hace que Sequelize cree automáticamente 'createdAt' y 'updatedAt'
-    timestamps: true
+    timestamps: false
 });
-
 
 module.exports = Producto;
