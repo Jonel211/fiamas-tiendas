@@ -30,6 +30,11 @@ const Tendero = sequelize.define('Tendero', {
         allowNull: false,
         unique: true
     },
+    foto_perfil_url: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+        comment: 'Foto de perfil del tendero'
+    },
     activo: {
         type: DataTypes.BOOLEAN,
         defaultValue: true

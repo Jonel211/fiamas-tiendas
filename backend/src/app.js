@@ -9,50 +9,39 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ==========================================
-// Health Check (Mejorado para verificar la BD)
-// ==========================================
-app.get('/health', async (req, res) => {
-    try {
-        // Intenta hacer una consulta simple a la base de datos
-        await sequelize.authenticate();
-
-        res.status(200).json({
-            status: 'OK',
-            message: 'Servidor y base de datos funcionando correctamente',
-            timestamp: new Date().toISOString(),
-            environment: process.env.NODE_ENV || 'development'
-        });
-    } catch (error) {
-        // Si la BD falla, devolvemos 503 (Service Unavailable)
-        res.status(503).json({
-            status: 'ERROR',
-            message: 'Fallo en la conexión a la base de datos',
-            timestamp: new Date().toISOString()
-        });
-    }
+// Health check
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'OK',
+        timestamp: new Date().toISOString()
+    });
 });
 
-// ==========================================
 // Rutas de la API
-// ==========================================
 const authRoutes = require('./routes/authRoutes');
-app.use('/api/auth', authRoutes);
-
 const tiendaRoutes = require('./routes/tiendaRoutes');
-app.use('/api/tiendas', tiendaRoutes);
-
 const tenderoRoutes = require('./routes/tenderoRoutes');
-app.use('/api/tenderos', tenderoRoutes);
-
 const productoRoutes = require('./routes/productoRoutes');
+
+app.use('/api/auth', authRoutes);
+app.use('/api/tiendas', tiendaRoutes);
+app.use('/api/tenderos', tenderoRoutes);
 app.use('/api/productos', productoRoutes);
 
-// ==========================================
 // Manejo de rutas no encontradas (404)
-// ==========================================
-app.use((req, res) => {
-    res.status(404).json({ error: 'Ruta no encontrada' });
+app.use((req, res, next) => {
+    res.status(404).json({
+        error: `Ruta no encontrada: ${req.method} ${req.originalUrl}`
+    });
+});
+
+// Manejo centralizado de errores (Global Error Handler)
+app.use((err, req, res, next) => {
+    console.error('Error no controlado en la aplicación:', err);
+    res.status(err.status || 500).json({
+        error: err.message || 'Error interno del servidor',
+        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    });
 });
 
 module.exports = app;

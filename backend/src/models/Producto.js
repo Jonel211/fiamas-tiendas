@@ -19,6 +19,10 @@ const Producto = sequelize.define('Producto', {
         type: DataTypes.STRING(200),
         allowNull: false
     },
+    descripcion: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
     imagen_url: {
         type: DataTypes.STRING(500),
         allowNull: true,
@@ -47,11 +51,13 @@ const Producto = sequelize.define('Producto', {
     },
     stock_actual: {
         type: DataTypes.DECIMAL(10, 2),
-        defaultValue: 0
+        allowNull: true,
+        defaultValue: null
     },
     stock_minimo: {
         type: DataTypes.DECIMAL(10, 2),
-        defaultValue: 0
+        allowNull: true,
+        defaultValue: null
     },
     activo: {
         type: DataTypes.BOOLEAN,

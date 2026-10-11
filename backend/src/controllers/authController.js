@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 const { Administrador, Tendero, Cliente, Tienda, sequelize } = require('../models');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -93,25 +94,38 @@ const login = async (req, res) => {
             process.env.JWT_SECRET || 'tu_clave_secreta_temporal',
             { expiresIn: '24h' }
         );
+=======
+const authService = require('../services/authService');
+
+// 1. LOGIN
+const login = async (req, res, next) => {
+    try {
+        const { identificador, email, telefono, password, rol } = req.body;
+        const idFinal = identificador || email || telefono;
+
+        const resultado = await authService.login({
+            identificador: idFinal,
+            password,
+            rolRequerido: rol
+        });
+>>>>>>> update/db-v6
 
         // 6️ Responder al frontend
         res.status(200).json({
             msg: 'Inicio de sesión exitoso',
-            token,
-            usuario: {
-                id: payload.id,
-                nombre: payload.nombre,
-                rol: payload.rol,
-                tienda_id: payload.tienda_id || null
-            }
+            ...resultado
         });
 
     } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ error: error.message });
+        }
         console.error('Error en login:', error);
         res.status(500).json({ error: 'Error interno del servidor al intentar iniciar sesión.' });
     }
 };
 
+<<<<<<< HEAD
 // ==========================================
 // 2. REGISTRO DE ADMINISTRADOR (Usa Email)
 // ==========================================
@@ -134,17 +148,27 @@ const registerAdmin = async (req, res) => {
             password_hash: password,
             telefono
         });
+=======
+// 2. REGISTRO DE ADMINISTRADOR
+const registerAdmin = async (req, res, next) => {
+    try {
+        const resultado = await authService.registrarAdministrador(req.body);
+>>>>>>> update/db-v6
 
         res.status(201).json({
             msg: 'Administrador registrado exitosamente',
-            id: nuevoAdmin.id
+            ...resultado
         });
     } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ error: error.message });
+        }
         console.error('Error al registrar admin:', error);
         res.status(500).json({ error: 'Error al registrar administrador', detalle: error.message });
     }
 };
 
+<<<<<<< HEAD
 // ==========================================
 // 3. REGISTRO DE TENDERO (Usa Teléfono, SIN Email)
 // ==========================================
@@ -191,55 +215,44 @@ const registerTendero = async (req, res) => {
         }, { transaction: t });
 
         await t.commit();
+=======
+// 3. REGISTRO DE TENDERO
+const registerTendero = async (req, res, next) => {
+    try {
+        const resultado = await authService.registrarTendero(req.body);
+>>>>>>> update/db-v6
 
         res.status(201).json({
             msg: 'Tendero y tienda registrados exitosamente',
-            tendero_id: nuevoTendero.id
+            ...resultado
         });
     } catch (error) {
-        await t.rollback();
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ error: error.message });
+        }
         console.error('Error al registrar tendero:', error);
         res.status(500).json({ error: 'Error al registrar tendero', detalle: error.message });
     }
 };
 
-// ==========================================
-// 4. REGISTRO DE CLIENTE (Usa Teléfono, SIN Email)
-// ==========================================
-const registerCliente = async (req, res) => {
+// 4. REGISTRO DE CLIENTE
+const registerCliente = async (req, res, next) => {
     try {
-        const { telefono, nombres, apellidos, password, direccion } = req.body;
-
-        if (!telefono || !nombres || !apellidos) {
-            return res.status(400).json({ error: 'Teléfono, nombres y apellidos son obligatorios.' });
-        }
-
-        const existente = await Cliente.findOne({ where: { telefono } });
-        if (existente) {
-            return res.status(400).json({ error: 'Ya existe un cliente registrado con ese número de teléfono.' });
-        }
-
-        const nuevoCliente = await Cliente.create({
-            telefono,
-            nombres,
-            apellidos,
-            password_hash: password || null,
-            direccion
-        });
+        const resultado = await authService.registrarCliente(req.body);
 
         res.status(201).json({
             msg: 'Cliente registrado exitosamente. Ahora puede vincularse a una tienda.',
-            id: nuevoCliente.id
+            ...resultado
         });
     } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ error: error.message });
+        }
         console.error('Error al registrar cliente:', error);
         res.status(500).json({ error: 'Error al registrar cliente', detalle: error.message });
     }
 };
 
-// ==========================================
-// EXPORTACIONES
-// ==========================================
 module.exports = {
     login,
     registerAdmin,

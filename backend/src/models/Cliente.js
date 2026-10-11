@@ -25,6 +25,11 @@ const Cliente = sequelize.define('Cliente', {
         type: DataTypes.STRING(255),
         allowNull: true
     },
+    foto_perfil_url: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+        comment: 'Foto de perfil o avatar del cliente'
+    },
     telefono_verificado: {
         type: DataTypes.BOOLEAN,
         defaultValue: false

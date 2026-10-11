@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'fiamas_default_secret_jwt_key_2026';
+
 // 1. Verifica que el token sea válido y extrae los datos
 exports.verificarToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -11,8 +13,8 @@ exports.verificarToken = (req, res, next) => {
     const token = authHeader.split(' ')[1];
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu_clave_secreta_temporal');
-        req.usuario = decoded; // { id, nombre, rol, tienda_id (si aplica) }
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.usuario = decoded;
         next();
     } catch (error) {
         return res.status(401).json({ error: 'Token inválido o expirado.' });
@@ -31,15 +33,18 @@ exports.verificarRol = (rolesPermitidos) => {
     };
 };
 
-// 3. (NUEVO v6) Evita que un tendero acceda a datos de otra tienda
+// 3. Evitar que un tendero acceda o modifique datos de otra tienda
 exports.verificarPropiedadTienda = (req, res, next) => {
-    // Si es admin, tiene acceso global
+    if (!req.usuario) {
+        return res.status(401).json({ error: 'Autenticación requerida.' });
+    }
+
+    // El administrador tiene acceso global
     if (req.usuario.rol === 'admin') return next();
 
-    // Si es tendero, el ID de la tienda en la URL o en el body debe coincidir con el de su token
-    const tiendaIdSolicitada = req.params.tienda_id || req.body.tienda_id;
+    const tiendaIdSolicitada = req.params.tienda_id || req.body.tienda_id || req.query.tienda_id;
 
-    if (req.usuario.rol === 'tendero' && req.usuario.tienda_id !== tiendaIdSolicitada) {
+    if (tiendaIdSolicitada && req.usuario.rol === 'tendero' && req.usuario.tienda_id !== tiendaIdSolicitada) {
         return res.status(403).json({ error: 'No tienes permiso para acceder a los datos de esta tienda.' });
     }
 

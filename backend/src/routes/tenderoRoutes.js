@@ -3,9 +3,7 @@ const router = express.Router();
 const tenderoController = require('../controllers/tenderoController');
 const { verificarToken, verificarRol } = require('../middleware/authMiddleware');
 
-// ==========================================
-// Rutas de Tendero (Protegidas)
-// ==========================================
+// Rutas de Tendero
 
 // 1. Obtener perfil del tendero
 // GET /api/tendero/perfil

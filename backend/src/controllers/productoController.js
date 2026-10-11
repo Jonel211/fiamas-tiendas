@@ -1,11 +1,10 @@
 const { Producto, Categoria, Tienda, Alerta, LogSistema, sequelize } = require('../models');
+const { Op } = require('sequelize');
 
-// ==========================================
 // 1. CREAR PRODUCTO
-// ==========================================
 exports.crearProducto = async (req, res) => {
     try {
-        const {
+        let {
             tienda_id,
             categoria_id,
             nombre,
@@ -18,6 +17,22 @@ exports.crearProducto = async (req, res) => {
             stock_actual,
             stock_minimo
         } = req.body;
+
+        // Si es tendero, asegurar que cree el producto en su propia tienda
+        if (req.usuario && req.usuario.rol === 'tendero') {
+            if (!req.usuario.tienda_id) {
+                return res.status(403).json({ error: 'El tendero no tiene una tienda asignada.' });
+            }
+            tienda_id = req.usuario.tienda_id;
+        }
+
+        if (!tienda_id) {
+            return res.status(400).json({ error: 'El ID de la tienda es obligatorio.' });
+        }
+
+        if (!nombre || precio_venta === undefined) {
+            return res.status(400).json({ error: 'El nombre y el precio de venta son obligatorios.' });
+        }
 
         // Validar que la tienda exista y esté activa
         const tienda = await Tienda.findByPk(tienda_id);
@@ -46,14 +61,14 @@ exports.crearProducto = async (req, res) => {
             tienda_id,
             categoria_id,
             nombre,
-            descripcion,
-            codigo_barras,
-            imagen_url,
+            descripcion: descripcion || null,
+            codigo_barras: codigo_barras || null,
+            imagen_url: imagen_url || null,
             tipo_venta: tipo_venta || 'unidad',
             unidad_medida: unidad_medida || 'unidad',
             precio_venta,
-            stock_actual: stock_actual || 0,
-            stock_minimo: stock_minimo || 0,
+            stock_actual: stock_actual !== undefined ? stock_actual : null,
+            stock_minimo: stock_minimo !== undefined ? stock_minimo : null,
             activo: true,
             creado_en: new Date(),
             actualizado_en: new Date()
@@ -69,15 +84,13 @@ exports.crearProducto = async (req, res) => {
     }
 };
 
-// ==========================================
 // 2. OBTENER TODOS LOS PRODUCTOS DE UNA TIENDA
-// ==========================================
 exports.getProductosPorTienda = async (req, res) => {
     try {
         let tiendaId;
 
         // Si es tendero, forzar su tienda. Si es admin, puede pasar tienda_id por params o query
-        if (req.usuario.rol === 'tendero') {
+        if (req.usuario && req.usuario.rol === 'tendero') {
             tiendaId = req.usuario.tienda_id;
         } else {
             tiendaId = req.params.tienda_id || req.query.tienda_id;
@@ -93,7 +106,7 @@ exports.getProductosPorTienda = async (req, res) => {
                 {
                     model: Categoria,
                     as: 'categoria',
-                    attributes: ['id', 'nombre', 'imagen_url']
+                    attributes: ['id', 'nombre', 'icono', 'color']
                 }
             ],
             order: [['nombre', 'ASC']]
@@ -106,9 +119,7 @@ exports.getProductosPorTienda = async (req, res) => {
     }
 };
 
-// ==========================================
 // 3. OBTENER UN PRODUCTO POR ID
-// ==========================================
 exports.getProductoPorId = async (req, res) => {
     try {
         const { id } = req.params;
@@ -119,7 +130,7 @@ exports.getProductoPorId = async (req, res) => {
                 {
                     model: Categoria,
                     as: 'categoria',
-                    attributes: ['id', 'nombre', 'imagen_url']
+                    attributes: ['id', 'nombre', 'icono', 'color']
                 },
                 {
                     model: Tienda,
@@ -140,9 +151,7 @@ exports.getProductoPorId = async (req, res) => {
     }
 };
 
-// ==========================================
 // 4. ACTUALIZAR PRODUCTO
-// ==========================================
 exports.actualizarProducto = async (req, res) => {
     try {
         const { id } = req.params;
@@ -164,6 +173,11 @@ exports.actualizarProducto = async (req, res) => {
             return res.status(404).json({ error: 'Producto no encontrado.' });
         }
 
+        // Control de acceso multi-tienda: el tendero solo puede editar sus propios productos
+        if (req.usuario && req.usuario.rol === 'tendero' && producto.tienda_id !== req.usuario.tienda_id) {
+            return res.status(403).json({ error: 'No tienes permiso para modificar productos de otra tienda.' });
+        }
+
         // Si se cambia la categoría, validar que pertenezca a la misma tienda
         if (categoria_id && categoria_id !== producto.categoria_id) {
             const categoria = await Categoria.findOne({
@@ -176,7 +190,7 @@ exports.actualizarProducto = async (req, res) => {
 
         // Si se cambia el código de barras, validar que no exista en otro producto
         if (codigo_barras && codigo_barras !== producto.codigo_barras) {
-            const existente = await Producto.findOne({ where: { codigo_barras } });
+            const existente = await Producto.findOne({ where: { codigo_barras, id: { [Op.ne]: id } } });
             if (existente) {
                 return res.status(400).json({ error: 'Ya existe otro producto con ese código de barras.' });
             }
@@ -198,22 +212,41 @@ exports.actualizarProducto = async (req, res) => {
 
         await producto.update(datosActualizacion);
 
-        // Verificar si el stock bajó del mínimo después de la actualización
-        const stockFinal = datosActualizacion.stock_actual !== undefined ? datosActualizacion.stock_actual : producto.stock_actual;
-        const minimoFinal = datosActualizacion.stock_minimo !== undefined ? datosActualizacion.stock_minimo : producto.stock_minimo;
+        // Verificar si el stock bajó del mínimo después de la actualización (solo si se gestiona stock)
+        const valorStock = datosActualizacion.stock_actual !== undefined ? datosActualizacion.stock_actual : producto.stock_actual;
+        const valorMinimo = datosActualizacion.stock_minimo !== undefined ? datosActualizacion.stock_minimo : producto.stock_minimo;
 
-        if (stockFinal <= minimoFinal) {
-            await Alerta.create({
-                tienda_id: producto.tienda_id,
-                producto_id: producto.id,
-                tipo_alerta: 'stock_bajo',
-                prioridad: 'alta',
-                titulo: 'Stock Bajo',
-                mensaje: `El producto "${producto.nombre}" tiene stock (${stockFinal}) por debajo del mínimo (${minimoFinal}).`,
-                canal: 'interno',
-                estado: 'pendiente',
-                fecha_creacion: new Date()
-            });
+        if (valorStock !== null && valorMinimo !== null) {
+            const stockFinal = Number(valorStock);
+            const minimoFinal = Number(valorMinimo);
+
+            if (stockFinal <= minimoFinal) {
+                // Evitar alertas duplicadas pendientes
+                const alertaExistente = await Alerta.findOne({
+                    where: {
+                        tienda_id: producto.tienda_id,
+                        producto_id: producto.id,
+                        tipo_alerta: 'stock_bajo',
+                        estado: 'pendiente'
+                    }
+                });
+
+                if (!alertaExistente) {
+                    await Alerta.create({
+                        emisor_tipo: 'sistema',
+                        destinatario_tipo: 'tendero',
+                        tienda_id: producto.tienda_id,
+                        producto_id: producto.id,
+                        tipo_alerta: 'stock_bajo',
+                        prioridad: 'alta',
+                        titulo: 'Stock Bajo',
+                        mensaje: `El producto "${producto.nombre}" tiene stock (${stockFinal}) por debajo del mínimo (${minimoFinal}).`,
+                        canal: 'interno',
+                        estado: 'pendiente',
+                        fecha_creacion: new Date()
+                    });
+                }
+            }
         }
 
         res.status(200).json({
@@ -226,9 +259,7 @@ exports.actualizarProducto = async (req, res) => {
     }
 };
 
-// ==========================================
 // 5. ELIMINAR PRODUCTO (Soft Delete)
-// ==========================================
 exports.eliminarProducto = async (req, res) => {
     try {
         const { id } = req.params;
@@ -236,6 +267,11 @@ exports.eliminarProducto = async (req, res) => {
         const producto = await Producto.findOne({ where: { id, activo: true } });
         if (!producto) {
             return res.status(404).json({ error: 'Producto no encontrado.' });
+        }
+
+        // Control de acceso multi-tienda: el tendero solo puede eliminar sus propios productos
+        if (req.usuario && req.usuario.rol === 'tendero' && producto.tienda_id !== req.usuario.tienda_id) {
+            return res.status(403).json({ error: 'No tienes permiso para eliminar productos de otra tienda.' });
         }
 
         // Soft delete: solo marcamos como inactivo
@@ -248,14 +284,12 @@ exports.eliminarProducto = async (req, res) => {
     }
 };
 
-// ==========================================
 // 6. OBTENER PRODUCTOS CON STOCK BAJO
-// ==========================================
 exports.getProductosStockBajo = async (req, res) => {
     try {
         let tiendaId;
 
-        if (req.usuario.rol === 'tendero') {
+        if (req.usuario && req.usuario.rol === 'tendero') {
             tiendaId = req.usuario.tienda_id;
         } else {
             tiendaId = req.params.tienda_id || req.query.tienda_id;
@@ -265,15 +299,17 @@ exports.getProductosStockBajo = async (req, res) => {
             return res.status(400).json({ error: 'Se requiere el ID de la tienda.' });
         }
 
-        // Buscar productos donde stock_actual <= stock_minimo
+        // Buscar productos donde stock_actual <= stock_minimo (excluyendo productos sin control de stock)
         const productos = await Producto.findAll({
             where: {
                 tienda_id: tiendaId,
                 activo: true,
-                [sequelize.Op.and]: [
+                stock_actual: { [Op.ne]: null },
+                stock_minimo: { [Op.ne]: null },
+                [Op.and]: [
                     sequelize.where(
                         sequelize.col('stock_actual'),
-                        { [sequelize.Op.lte]: sequelize.col('stock_minimo') }
+                        { [Op.lte]: sequelize.col('stock_minimo') }
                     )
                 ]
             },
@@ -281,7 +317,7 @@ exports.getProductosStockBajo = async (req, res) => {
                 {
                     model: Categoria,
                     as: 'categoria',
-                    attributes: ['id', 'nombre']
+                    attributes: ['id', 'nombre', 'icono', 'color']
                 }
             ],
             order: [['stock_actual', 'ASC']]
@@ -294,15 +330,13 @@ exports.getProductosStockBajo = async (req, res) => {
     }
 };
 
-// ==========================================
 // 7. BUSCAR PRODUCTOS POR NOMBRE O CÓDIGO DE BARRAS
-// ==========================================
 exports.buscarProductos = async (req, res) => {
     try {
         const { q } = req.query; // Query de búsqueda
         let tiendaId;
 
-        if (req.usuario.rol === 'tendero') {
+        if (req.usuario && req.usuario.rol === 'tendero') {
             tiendaId = req.usuario.tienda_id;
         } else {
             tiendaId = req.query.tienda_id;
@@ -314,9 +348,9 @@ exports.buscarProductos = async (req, res) => {
 
         const whereCondition = {
             activo: true,
-            [sequelize.Op.or]: [
-                { nombre: { [sequelize.Op.iLike]: `%${q}%` } },
-                { codigo_barras: { [sequelize.Op.iLike]: `%${q}%` } }
+            [Op.or]: [
+                { nombre: { [Op.iLike]: `%${q}%` } },
+                { codigo_barras: { [Op.iLike]: `%${q}%` } }
             ]
         };
 
@@ -330,7 +364,7 @@ exports.buscarProductos = async (req, res) => {
                 {
                     model: Categoria,
                     as: 'categoria',
-                    attributes: ['id', 'nombre']
+                    attributes: ['id', 'nombre', 'icono', 'color']
                 }
             ],
             limit: 50,
