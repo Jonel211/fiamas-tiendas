@@ -1,8 +1,8 @@
-const { Tienda, Tendero, Producto, Categoria, Alerta, sequelize } = require('../models');
+const { Tienda, Tendero, Producto, Categoria, Alerta, Fiado, ClienteTienda, sequelize } = require('../models');
+const { Op } = require('sequelize');
+const crypto = require('crypto');
 
-// ==========================================
 // 1. OBTENER DATOS DE LA TIENDA
-// ==========================================
 exports.getTienda = async (req, res) => {
     try {
         const tenderoId = req.usuario.id;
@@ -13,7 +13,7 @@ exports.getTienda = async (req, res) => {
                 {
                     model: Tendero,
                     as: 'tendero',
-                    attributes: ['id', 'nombres', 'apellidos', 'email', 'telefono']
+                    attributes: ['id', 'nombres', 'apellidos', 'telefono']
                 }
             ]
         });
@@ -32,13 +32,11 @@ exports.getTienda = async (req, res) => {
     }
 };
 
-// ==========================================
 // 2. ACTUALIZAR DATOS DE LA TIENDA
-// ==========================================
 exports.actualizarTienda = async (req, res) => {
     try {
         const tenderoId = req.usuario.id;
-        const { nombre, imagen_url, direccion, ruc, telefono, horario_apertura, horario_cierre } = req.body;
+        const { nombre, imagen_url, direccion, ruc, telefono } = req.body;
 
         const tienda = await Tienda.findOne({ where: { tendero_id: tenderoId, activo: true } });
         if (!tienda) {
@@ -51,8 +49,6 @@ exports.actualizarTienda = async (req, res) => {
         if (direccion !== undefined) datosActualizacion.direccion = direccion;
         if (ruc !== undefined) datosActualizacion.ruc = ruc;
         if (telefono !== undefined) datosActualizacion.telefono = telefono;
-        if (horario_apertura !== undefined) datosActualizacion.horario_apertura = horario_apertura;
-        if (horario_cierre !== undefined) datosActualizacion.horario_cierre = horario_cierre;
         datosActualizacion.actualizado_en = new Date();
 
         await tienda.update(datosActualizacion);
@@ -67,20 +63,17 @@ exports.actualizarTienda = async (req, res) => {
     }
 };
 
-// ==========================================
 // 3. GENERAR/REGENERAR CÓDIGO QR
-// ==========================================
 exports.generarQR = async (req, res) => {
     try {
         const tenderoId = req.usuario.id;
-        const crypto = require('crypto');
 
         const tienda = await Tienda.findOne({ where: { tendero_id: tenderoId, activo: true } });
         if (!tienda) {
             return res.status(404).json({ error: 'No se encontró una tienda activa para este tendero.' });
         }
 
-        // Generar nuevo token QR
+        // Generar nuevo token QR único
         const nuevoToken = crypto.randomUUID();
 
         await tienda.update({
@@ -90,8 +83,9 @@ exports.generarQR = async (req, res) => {
             actualizado_en: new Date()
         });
 
-        // URL del QR (puedes cambiarla por la URL de tu frontend)
-        const qrUrl = `https://tu-frontend.com/vincular-tienda?token=${nuevoToken}`;
+        // URL base configurable para la vinculación
+        const frontendUrl = process.env.FRONTEND_URL || 'https://fiamas.app';
+        const qrUrl = `${frontendUrl}/vincular-tienda?token=${nuevoToken}`;
 
         res.status(200).json({
             msg: 'Código QR generado exitosamente',
@@ -105,13 +99,15 @@ exports.generarQR = async (req, res) => {
     }
 };
 
-// ==========================================
 // 4. ACTIVAR/DESACTIVAR CÓDIGO QR
-// ==========================================
 exports.toggleQR = async (req, res) => {
     try {
         const tenderoId = req.usuario.id;
         const { activo } = req.body; // true o false
+
+        if (activo === undefined) {
+            return res.status(400).json({ error: 'El campo "activo" (booleano) es requerido.' });
+        }
 
         const tienda = await Tienda.findOne({ where: { tendero_id: tenderoId, activo: true } });
         if (!tienda) {
@@ -119,13 +115,13 @@ exports.toggleQR = async (req, res) => {
         }
 
         await tienda.update({
-            qr_activo: activo,
+            qr_activo: Boolean(activo),
             actualizado_en: new Date()
         });
 
         res.status(200).json({
             msg: `Código QR ${activo ? 'activado' : 'desactivado'} exitosamente`,
-            qr_activo: activo
+            qr_activo: Boolean(activo)
         });
     } catch (error) {
         console.error('Error al cambiar estado del QR:', error);
@@ -133,9 +129,7 @@ exports.toggleQR = async (req, res) => {
     }
 };
 
-// ==========================================
 // 5. OBTENER RESUMEN DE LA TIENDA (Dashboard)
-// ==========================================
 exports.getResumenTienda = async (req, res) => {
     try {
         const tenderoId = req.usuario.id;
@@ -145,19 +139,18 @@ exports.getResumenTienda = async (req, res) => {
             return res.status(404).json({ error: 'No se encontró una tienda activa para este tendero.' });
         }
 
-        const { Fiado, ClienteTienda, Producto, Alerta } = require('../models');
-        const { Op } = require('sequelize');
-
         // Total de productos
         const totalProductos = await Producto.count({
             where: { tienda_id: tienda.id, activo: true }
         });
 
-        // Productos con stock bajo
+        // Productos con stock bajo (solo productos con control de inventario)
         const productosStockBajo = await Producto.count({
             where: {
                 tienda_id: tienda.id,
                 activo: true,
+                stock_actual: { [Op.ne]: null },
+                stock_minimo: { [Op.ne]: null },
                 [Op.and]: [
                     sequelize.where(sequelize.col('stock_actual'), { [Op.lte]: sequelize.col('stock_minimo') })
                 ]
@@ -205,7 +198,7 @@ exports.getResumenTienda = async (req, res) => {
                 total_categorias: totalCategorias,
                 total_clientes: totalClientes,
                 fiados_pendientes: fiadosPendientes,
-                monto_por_cobrar: fiadosMonto || 0,
+                monto_por_cobrar: Number(fiadosMonto) || 0,
                 alertas_pendientes: alertasPendientes
             }
         });

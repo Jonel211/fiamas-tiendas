@@ -33,14 +33,17 @@ const startServer = async () => {
         await testConnection();
 
         // 2. Sincronizar modelos
-        console.log('Sincronizando base de datos...');
-
-        await sequelize.sync({
-            alter: true,
-            logging: false
-        });
-
-        console.log('Base de datos sincronizada correctamente.');
+        const shouldAlter = process.env.DB_SYNC_ALTER ? process.env.DB_SYNC_ALTER === 'true' : process.env.NODE_ENV !== 'production';
+        if (shouldAlter) {
+            console.log('Sincronizando modelos con la base de datos (alter: true)...');
+            await sequelize.sync({
+                alter: true,
+                logging: false
+            });
+            console.log('Base de datos sincronizada correctamente.');
+        } else {
+            console.log('Modo producción o DB_SYNC_ALTER deshabilitado: omitiendo alter automático.');
+        }
 
         // 3. Obtener IP automáticamente
         const localIP = getLocalIP();

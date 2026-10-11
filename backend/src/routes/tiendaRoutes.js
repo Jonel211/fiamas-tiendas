@@ -3,9 +3,7 @@ const router = express.Router();
 const tiendaController = require('../controllers/tiendaController');
 const { verificarToken, verificarRol } = require('../middleware/authMiddleware');
 
-// ==========================================
-// Rutas de Tienda (Protegidas)
-// ==========================================
+// Rutas de Tienda
 
 // 1. Obtener datos de la tienda
 // GET /api/tienda

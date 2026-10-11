@@ -3,11 +3,9 @@ const router = express.Router();
 const productoController = require('../controllers/productoController');
 const { verificarToken, verificarRol, verificarPropiedadTienda } = require('../middleware/authMiddleware');
 
-// ==========================================
-// Rutas de Productos (Protegidas)
-// ==========================================
+// Rutas de Productos
 
-// 1. Crear un producto — Solo tenderos y admins
+// 1. Crear un producto
 // POST /api/productos
 router.post(
     '/',
@@ -17,7 +15,7 @@ router.post(
     productoController.crearProducto
 );
 
-// 2. Obtener todos los productos de una tienda — Tenderos y admins
+// 2. Obtener todos los productos de una tienda
 // GET /api/productos/tienda/:tienda_id
 router.get(
     '/tienda/:tienda_id',
@@ -27,7 +25,7 @@ router.get(
     productoController.getProductosPorTienda
 );
 
-// 3. Obtener productos con stock bajo — Tenderos y admins
+// 3. Obtener productos con stock bajo
 // GET /api/productos/stock-bajo/:tienda_id
 router.get(
     '/stock-bajo/:tienda_id',
@@ -46,7 +44,7 @@ router.get(
     productoController.buscarProductos
 );
 
-// 5. Obtener un producto por ID — Todos los roles autenticados
+// 5. Obtener un producto por ID
 // GET /api/productos/:id
 router.get(
     '/:id',
@@ -55,7 +53,7 @@ router.get(
     productoController.getProductoPorId
 );
 
-// 6. Actualizar un producto — Solo tenderos y admins
+// 6. Actualizar un producto
 // PUT /api/productos/:id
 router.put(
     '/:id',
@@ -64,7 +62,7 @@ router.put(
     productoController.actualizarProducto
 );
 
-// 7. Eliminar un producto (soft delete) — Solo tenderos y admins
+// 7. Eliminar un producto
 // DELETE /api/productos/:id
 router.delete(
     '/:id',

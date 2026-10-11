@@ -29,3 +29,6 @@ Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
+
+# Scripts
+backend/scripts/

@@ -63,6 +63,14 @@ FiadoDetalle.belongsTo(Producto, { foreignKey: 'producto_id', as: 'producto' });
 Fiado.hasMany(Pago, { foreignKey: 'fiado_id', as: 'pagos' });
 Pago.belongsTo(Fiado, { foreignKey: 'fiado_id', as: 'fiado' });
 
+// Tienda <-> Pago
+Tienda.hasMany(Pago, { foreignKey: 'tienda_id', as: 'pagos' });
+Pago.belongsTo(Tienda, { foreignKey: 'tienda_id', as: 'tienda' });
+
+// Cliente <-> Pago
+Cliente.hasMany(Pago, { foreignKey: 'cliente_id', as: 'pagos' });
+Pago.belongsTo(Cliente, { foreignKey: 'cliente_id', as: 'cliente' });
+
 // Tendero <-> Pago (Registrado por)
 Tendero.hasMany(Pago, { foreignKey: 'registrado_por', as: 'pagosRegistrados' });
 Pago.belongsTo(Tendero, { foreignKey: 'registrado_por', as: 'registrador' });
@@ -87,6 +95,14 @@ ScoringHistorial.belongsTo(Tienda, { foreignKey: 'tienda_id', as: 'tienda' });
 // Tienda <-> LogSistema
 Tienda.hasMany(LogSistema, { foreignKey: 'tienda_id', as: 'logs' });
 LogSistema.belongsTo(Tienda, { foreignKey: 'tienda_id', as: 'tienda' });
+
+// Asociaciones recíprocas adicionales
+Producto.hasMany(FiadoDetalle, { foreignKey: 'producto_id', as: 'detalles' });
+Cliente.hasMany(Alerta, { foreignKey: 'cliente_id', as: 'alertas' });
+Producto.hasMany(Alerta, { foreignKey: 'producto_id', as: 'alertas' });
+Cliente.hasMany(ClienteTienda, { foreignKey: 'cliente_id', as: 'tiendasVinculadas' });
+Tienda.hasMany(ClienteTienda, { foreignKey: 'tienda_id', as: 'clientesVinculados' });
+Tienda.hasMany(ScoringHistorial, { foreignKey: 'tienda_id', as: 'scoringHistoriales' });
 
 // 3. Exportar todo
 module.exports = {
