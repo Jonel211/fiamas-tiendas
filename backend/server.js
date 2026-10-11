@@ -28,20 +28,6 @@ const startServer = async () => {
         // 1. Probar conexión a la base de datos
         await testConnection();
 
-<<<<<<< HEAD
-        // 2. Sincronizar modelos de forma SEGURA
-        console.log('Sincronizando base de datos...');
-
-        // En producción NO usamos 'alter: true' para evitar que Sequelize 
-        // modifique o borre columnas accidentalmente. Solo crea tablas si no existen.
-        const isProduction = process.env.NODE_ENV === 'production';
-        const syncOptions = isProduction
-            ? { logging: false }
-            : { alter: true, logging: false };
-
-        await sequelize.sync(syncOptions);
-        console.log(' Base de datos sincronizada correctamente.');
-=======
         // 2. Sincronizar modelos
         const shouldAlter = process.env.DB_SYNC_ALTER ? process.env.DB_SYNC_ALTER === 'true' : process.env.NODE_ENV !== 'production';
         if (shouldAlter) {
@@ -54,7 +40,6 @@ const startServer = async () => {
         } else {
             console.log('Modo producción o DB_SYNC_ALTER deshabilitado: omitiendo alter automático.');
         }
->>>>>>> update/db-v6
 
         // 3. Obtener IP local (solo informativo para desarrollo)
         const localIP = getLocalIP();
