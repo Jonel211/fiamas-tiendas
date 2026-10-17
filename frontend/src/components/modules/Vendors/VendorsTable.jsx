@@ -21,7 +21,7 @@ const VendorsTable = ({ vendors, onEdit, onView, onDelete, onToggleStatus, actio
         {vendors.map((vendor) => (
           <div
             key={vendor.id}
-            className="bg-white dark:bg-[#1A1F2E] rounded-xl shadow-sm border border-gray-100 dark:border-white/5 p-4 flex flex-col gap-3"
+            className="bg-white/85 dark:bg-[#1A1F2E]/80 rounded-md shadow-sm border border-white/50 dark:border-white/10 p-4 flex flex-col gap-3 backdrop-blur-sm"
           >
             {/* Header de la tarjeta */}
             <div className="flex items-center justify-between gap-3">
@@ -125,17 +125,17 @@ const VendorsTable = ({ vendors, onEdit, onView, onDelete, onToggleStatus, actio
       </div>
 
       {/* Vista Desktop / Tablet (hidden sm:block): Tabla con Acciones sticky y min-w */}
-      <div className="hidden sm:block bg-white dark:bg-[#1A1F2E] rounded-xl shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden">
+      <div className="hidden sm:block bg-white/85 dark:bg-[#1A1F2E]/80 rounded-md shadow-sm border border-white/50 dark:border-white/10 overflow-hidden backdrop-blur-sm transition-colors">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] text-left">
-            <thead className="bg-gray-50 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 text-sm">
+            <thead className="bg-gray-50/60 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-sm">
               <tr>
                 <th className="px-6 py-4 font-medium">Nombre</th>
                 <th className="px-6 py-4 font-medium">Contacto</th>
                 <th className="px-6 py-4 font-medium">DNI</th>
                 <th className="px-6 py-4 font-medium">Estado</th>
                 <th className="px-6 py-4 font-medium">Creado</th>
-                <th className="px-6 py-4 font-medium text-center sticky right-0 bg-gray-50 dark:bg-[#1E2538] z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.3)]">
+                <th className="px-6 py-4 font-medium text-center sticky right-0 bg-gray-50/90 dark:bg-[#1A1F2E]/90 backdrop-blur-xs z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.3)]">
                   Acciones
                 </th>
               </tr>
@@ -187,7 +187,7 @@ const VendorsTable = ({ vendors, onEdit, onView, onDelete, onToggleStatus, actio
                   <td className="px-6 py-4 text-[14px] leading-[20px] font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     <div>{formatDate(vendor.creado_en || vendor.createdAt)}</div>
                   </td>
-                  <td className="px-6 py-4 sticky right-0 bg-white dark:bg-[#1A1F2E] group-hover:bg-gray-50 dark:group-hover:bg-[#202738] z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.3)] transition-colors">
+                  <td className="px-6 py-4 sticky right-0 bg-white/90 dark:bg-[#1A1F2E]/90 backdrop-blur-xs group-hover:bg-white dark:group-hover:bg-[#202738] z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.3)] transition-colors">
                     <div className="flex items-center justify-center gap-1.5">
                       {/* Ver Detalle */}
                       <button

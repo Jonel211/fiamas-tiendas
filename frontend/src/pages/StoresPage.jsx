@@ -266,14 +266,14 @@ const StoresPage = () => {
           )}
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-[#1A1F2E] rounded-xl border border-gray-100 dark:border-white/5">
-              <Loader2 className="w-8 h-8 animate-spin text-teal-600 mb-3" />
-              <p className="text-gray-500 dark:text-gray-400 text-sm">Cargando tiendas conectadas...</p>
+            <div className="flex flex-col items-center justify-center py-20 bg-white/85 dark:bg-[#1A1F2E]/80 rounded-md border border-white/50 dark:border-white/10 backdrop-blur-sm shadow-sm">
+              <Loader2 className="w-8 h-8 animate-spin text-[#1D9492] mb-3" />
+              <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Cargando tiendas conectadas...</p>
             </div>
           ) : filteredStores.length === 0 ? (
-            <div className="text-center py-16 bg-white dark:bg-[#1A1F2E] rounded-xl border border-gray-100 dark:border-white/5">
-              <Store className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-              <h3 className="text-base font-medium text-gray-700 dark:text-gray-300">No se encontraron tiendas</h3>
+            <div className="text-center py-16 bg-white/85 dark:bg-[#1A1F2E]/80 rounded-md border border-white/50 dark:border-white/10 backdrop-blur-sm shadow-sm">
+              <Store className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3 opacity-60" />
+              <h3 className="text-base font-semibold text-gray-700 dark:text-gray-300">No se encontraron tiendas</h3>
               <p className="text-sm text-gray-400 mt-1">Intenta con otros filtros o añade una nueva tienda.</p>
             </div>
           ) : (

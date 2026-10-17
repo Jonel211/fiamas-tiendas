@@ -87,7 +87,7 @@ const VendorDetailView = ({
       </div>
 
       {/* Tarjeta Principal de Presentación */}
-      <div className="bg-white dark:bg-[#1A1F2E] rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+      <div className="bg-white/85 dark:bg-[#1A1F2E]/80 rounded-md border border-white/50 dark:border-white/10 p-6 shadow-sm backdrop-blur-sm">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
           <div className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex-shrink-0 flex items-center justify-center overflow-hidden">
             {vendor.foto_perfil_url ? (
@@ -132,7 +132,7 @@ const VendorDetailView = ({
       {/* Grid de Secciones */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Sección: Datos Personales */}
-        <div className="bg-white dark:bg-[#1A1F2E] rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
+        <div className="bg-white/85 dark:bg-[#1A1F2E]/80 rounded-md border border-white/50 dark:border-white/10 p-5 shadow-sm space-y-4 backdrop-blur-sm">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
             <User className="w-4 h-4 text-[#1D9492]" />
             <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
@@ -174,7 +174,7 @@ const VendorDetailView = ({
         </div>
 
         {/* Sección: Historial y Registro */}
-        <div className="bg-white dark:bg-[#1A1F2E] rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
+        <div className="bg-white/85 dark:bg-[#1A1F2E]/80 rounded-md border border-white/50 dark:border-white/10 p-5 shadow-sm space-y-4 backdrop-blur-sm">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
             <Calendar className="w-4 h-4 text-[#1D9492]" />
             <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
@@ -208,7 +208,7 @@ const VendorDetailView = ({
         </div>
 
         {/* Sección: Tiendas a su Cargo (Full width) */}
-        <div className="md:col-span-2 bg-white dark:bg-[#1A1F2E] rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
+        <div className="md:col-span-2 bg-white/85 dark:bg-[#1A1F2E]/80 rounded-md border border-white/50 dark:border-white/10 p-5 shadow-sm space-y-4 backdrop-blur-sm">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2">
               <Store className="w-4 h-4 text-[#1D9492]" />

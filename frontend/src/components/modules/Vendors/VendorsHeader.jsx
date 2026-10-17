@@ -17,7 +17,7 @@ const VendorsHeader = ({ onRefresh, loading }) => {
         <button
           onClick={onRefresh}
           title="Recargar datos"
-          className="p-2 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-gray-600 dark:text-gray-300 transition-colors cursor-pointer"
+          className="p-2 border border-white/50 dark:border-white/10 bg-white/85 dark:bg-[#1A1F2E]/80 hover:bg-gray-50 dark:hover:bg-white/5 rounded-md text-gray-600 dark:text-gray-300 transition-colors cursor-pointer shadow-sm"
         >
           <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
         </button>
