@@ -9,9 +9,7 @@ const BackupsPage = () => {
     <div className="space-y-6">
       {/* Encabezado */}
       <div className="flex items-center gap-3">
-        <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center">
-          <img src={iconBackups} alt="" className="w-6 h-6 object-contain" />
-        </div>
+        <img src={iconBackups} alt="Backups" className="w-9 h-9 sm:w-10 sm:h-10 object-contain flex-shrink-0" />
         <div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Copias de Seguridad</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Historial y estado de los respaldos del sistema.</p>

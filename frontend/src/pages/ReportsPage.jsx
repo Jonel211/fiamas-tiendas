@@ -3,12 +3,10 @@ import iconReportes from '@/assets/icons/sidebar/reportes.png';
 
 const ReportsPage = () => {
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto space-y-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl flex items-center justify-center">
-            <img src={iconReportes} alt="" className="w-6 h-6 object-contain" />
-          </div>
+          <img src={iconReportes} alt="Reportes" className="w-9 h-9 sm:w-10 sm:h-10 object-contain flex-shrink-0" />
           <div>
             <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Reportes y Estadísticas</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">Métricas de desempeño de tiendas y tenderos.</p>

@@ -6,16 +6,22 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { logout } from '@/services/authService';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { LogOut } from 'lucide-react';
 import LogoutModal from './LogoutModal';
 
 const SidebarUser = ({ isExpanded }) => {
   const navigate = useNavigate();
+  const { logout: authContextLogout } = useAuth();
+  const toast = useToast();
   const [showModal, setShowModal] = useState(false);
 
   const handleConfirm = () => {
     setShowModal(false);
     logout();
+    authContextLogout();
+    toast.info('Sesión cerrada', 'Has cerrado sesión exitosamente.');
     navigate('/auth/login');
   };
 

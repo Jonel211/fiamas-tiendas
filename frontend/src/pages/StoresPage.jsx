@@ -1,176 +1,323 @@
-import { useState } from 'react';
-import { Plus, Edit2, QrCode, Power, X, Save, Store } from 'lucide-react';
-import iconTiendas from '@/assets/icons/sidebar/tiendas.png';
-
-const initialStores = [
-  { id: 1, nombre_comercial: 'Bodega El Sol', direccion: 'Av. Principal 123', ruc: '20123456789', telefono: '01 4567890', imagen_url: 'https://via.placeholder.com/150', tendero_id: 1, tendero_nombre: 'Juan Carlos Pérez', activo: true, qr_activo: true },
-  { id: 2, nombre_comercial: 'Minimarket Los Pinos', direccion: 'Jr. Los Álamos 456', ruc: '20987654321', telefono: '01 9876543', imagen_url: 'https://via.placeholder.com/150', tendero_id: 2, tendero_nombre: 'Ana María Gómez', activo: false, qr_activo: false },
-];
+import { useState, useEffect, useMemo } from 'react';
+import { Loader2, AlertCircle, Store } from 'lucide-react';
+import { getTiendas, getCachedTiendas, createTienda, updateTienda, deleteTienda, toggleTiendaActivo, toggleTiendaQR, generarTiendaQR } from '@/services/storeService';
+import { getTenderos, getCachedTenderos } from '@/services/vendorService';
+import { useToast } from '@/context/ToastContext';
+import StoresHeader from '@/components/modules/Stores/StoresHeader';
+import StoresFilters from '@/components/modules/Stores/StoresFilters';
+import StoreCard from '@/components/modules/Stores/StoreCard';
+import StoreModal from '@/components/modules/Stores/StoreModal';
+import StoreDetailView from '@/components/modules/Stores/StoreDetailView';
+import ConfirmDeleteModal from '@/components/ui/ConfirmDeleteModal';
 
 const StoresPage = () => {
-  const [stores, setStores] = useState(initialStores);
+  const toast = useToast();
+  const [stores, setStores] = useState(() => getCachedTiendas() || []);
+  const [vendors, setVendors] = useState(() => getCachedTenderos() || []);
+  const [loading, setLoading] = useState(() => !getCachedTiendas());
+  const [error, setError] = useState(null);
+
+  // Filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [qrFilter, setQrFilter] = useState('all');
+
+  // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentStore, setCurrentStore] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionLoadingId, setActionLoadingId] = useState(null);
+  const [modalError, setModalError] = useState('');
+
+  // Detalle en página y Eliminación
+  const [selectedStoreDetails, setSelectedStoreDetails] = useState(null);
+  const [storeToDelete, setStoreToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const loadData = async (force = false) => {
+    if (!getCachedTiendas() || force) {
+      if (!stores.length) setLoading(true);
+    }
+    setError(null);
+    try {
+      const [storesData, vendorsData] = await Promise.all([
+        getTiendas(force),
+        getTenderos(force).catch(() => [])
+      ]);
+      setStores(storesData);
+      setVendors(vendorsData);
+    } catch (err) {
+      setError(err.message || 'Error al cargar las tiendas');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const openModal = (store = null) => {
-    setCurrentStore(store || { nombre_comercial: '', direccion: '', ruc: '', telefono: '', imagen_url: '', tendero_id: '', activo: true, qr_activo: true });
+    setModalError('');
+    if (store) {
+      setCurrentStore({
+        id: store.id,
+        nombre: store.nombre || '',
+        direccion: store.direccion || '',
+        ruc: store.ruc || '',
+        telefono: store.telefono || '',
+        imagen_url: store.imagen_url || '',
+        tendero_id: store.tendero_id || '',
+        activo: Boolean(store.activo),
+        qr_activo: Boolean(store.qr_activo),
+      });
+    } else {
+      setCurrentStore({
+        nombre: '',
+        direccion: '',
+        ruc: '',
+        telefono: '',
+        imagen_url: '',
+        tendero_id: vendors.length > 0 ? vendors[0].id : '',
+        activo: true,
+        qr_activo: true,
+      });
+    }
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setCurrentStore(null);
+    setModalError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleFieldChange = (field, value) => {
+    setCurrentStore((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (currentStore.id) {
-      setStores(stores.map(s => s.id === currentStore.id ? currentStore : s));
-    } else {
-      setStores([...stores, { ...currentStore, id: Date.now(), tendero_nombre: 'Asignado (ID: ' + currentStore.tendero_id + ')' }]);
+    setModalError('');
+    setIsSubmitting(true);
+
+    try {
+      if (currentStore.id) {
+        const updated = await updateTienda(currentStore.id, currentStore);
+        setStores((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+        if (selectedStoreDetails && selectedStoreDetails.id === updated.id) {
+          setSelectedStoreDetails(updated);
+        }
+        toast.success('Tienda actualizada', `Los datos de "${updated.nombre || currentStore.nombre}" se guardaron exitosamente.`);
+      } else {
+        const created = await createTienda(currentStore);
+        setStores((prev) => [created, ...prev]);
+        toast.success('Tienda creada', `La tienda "${created.nombre || currentStore.nombre}" se registró con éxito.`);
+      }
+      closeModal();
+    } catch (err) {
+      setModalError(err.message || 'Error al guardar los datos de la tienda');
+      toast.error('Error al guardar', err.message || 'No se pudo guardar la información de la tienda');
+    } finally {
+      setIsSubmitting(false);
     }
-    closeModal();
   };
 
-  const toggleField = (id, field) => {
-    setStores(stores.map(s => s.id === id ? { ...s, [field]: !s[field] } : s));
+  const handleToggleActivo = async (store) => {
+    setActionLoadingId(`activo-${store.id}`);
+    try {
+      await toggleTiendaActivo(store.id);
+      const nuevoEstado = !store.activo;
+      setStores((prev) =>
+        prev.map((s) => (s.id === store.id ? { ...s, activo: nuevoEstado } : s))
+      );
+      if (selectedStoreDetails && selectedStoreDetails.id === store.id) {
+        setSelectedStoreDetails((prev) => ({ ...prev, activo: nuevoEstado }));
+      }
+      toast.info(
+        nuevoEstado ? 'Tienda activada' : 'Tienda desactivada',
+        `"${store.nombre}" está ahora ${nuevoEstado ? 'activa' : 'inactiva'}.`
+      );
+    } catch (err) {
+      toast.error('Error', err.message || 'No se pudo cambiar el estado de la tienda');
+    } finally {
+      setActionLoadingId(null);
+    }
   };
+
+  const handleToggleQR = async (store) => {
+    setActionLoadingId(`qr-${store.id}`);
+    try {
+      const nuevoEstado = !store.qr_activo;
+      await toggleTiendaQR(store.id, nuevoEstado);
+      setStores((prev) =>
+        prev.map((s) => (s.id === store.id ? { ...s, qr_activo: nuevoEstado } : s))
+      );
+      if (selectedStoreDetails && selectedStoreDetails.id === store.id) {
+        setSelectedStoreDetails((prev) => ({ ...prev, qr_activo: nuevoEstado }));
+      }
+      toast.info(
+        nuevoEstado ? 'QR Activado' : 'QR Desactivado',
+        `El token QR de "${store.nombre}" está ${nuevoEstado ? 'activo' : 'desactivado'}.`
+      );
+    } catch (err) {
+      toast.error('Error QR', err.message || 'No se pudo cambiar el estado del QR');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleRegenerarQR = async (store) => {
+    if (!window.confirm(`¿Deseas regenerar el código QR para "${store.nombre}"?`)) return;
+    setActionLoadingId(`regen-${store.id}`);
+    try {
+      const res = await generarTiendaQR(store.id);
+      setStores((prev) =>
+        prev.map((s) => (s.id === store.id ? { ...s, qr_token: res.qr_token, qr_activo: true } : s))
+      );
+      if (selectedStoreDetails && selectedStoreDetails.id === store.id) {
+        setSelectedStoreDetails((prev) => ({ ...prev, qr_token: res.qr_token, qr_activo: true }));
+      }
+      toast.success('QR Regenerado', `Nuevo código QR asignado a "${store.nombre}".`);
+    } catch (err) {
+      toast.error('Error', err.message || 'No se pudo regenerar el QR');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!storeToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteTienda(storeToDelete.id);
+      setStores((prev) => prev.filter((s) => s.id !== storeToDelete.id));
+      if (selectedStoreDetails && selectedStoreDetails.id === storeToDelete.id) {
+        setSelectedStoreDetails(null);
+      }
+      toast.success('Tienda eliminada', `La tienda "${storeToDelete.nombre}" ha sido eliminada correctamente.`);
+      setStoreToDelete(null);
+    } catch (err) {
+      toast.error('Error al eliminar', err.message || 'No se pudo eliminar la tienda');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setQrFilter('all');
+  };
+
+  const filteredStores = useMemo(() => {
+    return stores.filter((store) => {
+      const search = searchTerm.toLowerCase();
+      const nombre = (store.nombre || '').toLowerCase();
+      const ruc = (store.ruc || '').toLowerCase();
+      const responsable = store.tendero
+        ? `${store.tendero.nombres} ${store.tendero.apellidos}`.toLowerCase()
+        : '';
+
+      const matchSearch = nombre.includes(search) || ruc.includes(search) || responsable.includes(search);
+      const matchStatus = statusFilter === 'all' || (statusFilter === 'active' ? store.activo : !store.activo);
+      const matchQr = qrFilter === 'all' || (qrFilter === 'qr_active' ? store.qr_activo : !store.qr_activo);
+
+      return matchSearch && matchStatus && matchQr;
+    });
+  }, [stores, searchTerm, statusFilter, qrFilter]);
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-teal-50 dark:bg-teal-900/20 rounded-xl flex items-center justify-center">
-            <img src={iconTiendas} alt="" className="w-6 h-6 object-contain" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Gestión de Tiendas</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Administra las tiendas y sus códigos QR vinculados.</p>
-          </div>
-        </div>
-        <button onClick={() => openModal()} className="flex items-center gap-2 bg-[#1D9492] hover:bg-[#167876] text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm">
-          <Plus className="w-4 h-4" /> Nueva Tienda
-        </button>
-      </div>
+    <div className="space-y-4 animate-fade-soft">
+      {/* Si hay una tienda seleccionada para ver detalle, se reemplaza la vista en la misma página */}
+      {selectedStoreDetails ? (
+        <StoreDetailView
+          store={selectedStoreDetails}
+          onBack={() => setSelectedStoreDetails(null)}
+          onEdit={openModal}
+          onDelete={setStoreToDelete}
+          onToggleActivo={handleToggleActivo}
+          onToggleQR={handleToggleQR}
+          onRegenerarQR={handleRegenerarQR}
+        />
+      ) : (
+        <>
+          <StoresHeader onRefresh={() => loadData(true)} loading={loading} />
 
-      <div className="flex flex-col sm:flex-row gap-3 mb-6 bg-white dark:bg-[#1A1F2E] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5">
-        <div className="flex-1 relative">
-          <input 
-            type="text" 
-            placeholder="Buscar por nombre, RUC o responsable..." 
-            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-[#242B3D] border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1D9492] dark:text-white transition-all"
+          <StoresFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            statusFilter={statusFilter}
+            onStatusChange={setStatusFilter}
+            qrFilter={qrFilter}
+            onQrChange={setQrFilter}
+            onClearFilters={handleClearFilters}
+            onOpenModal={openModal}
           />
-          <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </div>
-        <select className="px-4 py-2 bg-gray-50 dark:bg-[#242B3D] border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1D9492] cursor-pointer">
-          <option value="all">Todas las tiendas</option>
-          <option value="active">Activas</option>
-          <option value="inactive">Inactivas</option>
-        </select>
-        <select className="px-4 py-2 bg-gray-50 dark:bg-[#242B3D] border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1D9492] cursor-pointer">
-          <option value="all">Cualquier estado QR</option>
-          <option value="qr_active">QR Activo</option>
-          <option value="qr_inactive">QR Inactivo</option>
-        </select>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {stores.map(store => (
-          <div key={store.id} className="bg-white dark:bg-[#1A1F2E] rounded-xl shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden flex flex-col">
-            <div className="p-5 flex items-start gap-4">
-              <div className="w-16 h-16 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
-                {store.imagen_url ? (
-                  <img src={store.imagen_url} alt="Logo" className="w-full h-full object-cover" />
-                ) : (
-                  <Store className="w-full h-full p-4 text-gray-400" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-gray-900 dark:text-white truncate">{store.nombre_comercial}</h3>
-                <p className="text-sm text-gray-500 truncate">RUC: {store.ruc}</p>
-                <p className="text-sm text-teal-600 dark:text-teal-400 truncate mt-1">Resp: {store.tendero_nombre}</p>
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-50 dark:border-white/5 bg-gray-50/50 dark:bg-gray-800/30 flex justify-between items-center mt-auto">
-              <div className="flex gap-4">
-                <div className="flex flex-col items-center">
-                  <span className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Tienda</span>
-                  <button onClick={() => toggleField(store.id, 'activo')} className={`p-1.5 rounded-md transition-colors ${store.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`} title={store.activo ? 'Deshabilitar Tienda' : 'Habilitar Tienda'}>
-                    <Power className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="flex flex-col items-center">
-                  <span className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider mb-1">Token QR</span>
-                  <button onClick={() => toggleField(store.id, 'qr_activo')} className={`p-1.5 rounded-md transition-colors ${store.qr_activo ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'}`} title={store.qr_activo ? 'Deshabilitar QR' : 'Habilitar QR'}>
-                    <QrCode className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              <button onClick={() => openModal(store)} className="p-2 text-gray-400 hover:text-teal-600 transition-colors">
-                <Edit2 className="w-5 h-5" />
+          {error && (
+            <div className="flex items-center gap-3 p-4 mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <span className="text-sm">{error}</span>
+              <button onClick={loadData} className="ml-auto underline text-sm font-semibold">
+                Reintentar
               </button>
             </div>
-          </div>
-        ))}
-      </div>
+          )}
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-[#1A1F2E] rounded-xl shadow-xl w-full max-w-2xl overflow-hidden border border-gray-100 dark:border-gray-800">
-            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-800 dark:text-white">{currentStore.id ? 'Editar Tienda' : 'Nueva Tienda'}</h3>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-[#1A1F2E] rounded-xl border border-gray-100 dark:border-white/5">
+              <Loader2 className="w-8 h-8 animate-spin text-teal-600 mb-3" />
+              <p className="text-gray-500 dark:text-gray-400 text-sm">Cargando tiendas conectadas...</p>
             </div>
-            <form onSubmit={handleSubmit} className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre Comercial</label>
-                  <input required type="text" value={currentStore.nombre_comercial} onChange={e => setCurrentStore({ ...currentStore, nombre_comercial: e.target.value })} className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-teal-500 outline-none" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">RUC</label>
-                  <input required type="text" value={currentStore.ruc} onChange={e => setCurrentStore({ ...currentStore, ruc: e.target.value })} className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-teal-500 outline-none" />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dirección</label>
-                  <input required type="text" value={currentStore.direccion} onChange={e => setCurrentStore({ ...currentStore, direccion: e.target.value })} className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-teal-500 outline-none" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Teléfono</label>
-                  <input required type="tel" value={currentStore.telefono} onChange={e => setCurrentStore({ ...currentStore, telefono: e.target.value })} className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-teal-500 outline-none" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ID Responsable (Tendero)</label>
-                  <input required type="number" value={currentStore.tendero_id} onChange={e => setCurrentStore({ ...currentStore, tendero_id: e.target.value })} className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-teal-500 outline-none" />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL del Logo (imagen_url)</label>
-                  <input type="url" value={currentStore.imagen_url} onChange={e => setCurrentStore({ ...currentStore, imagen_url: e.target.value })} className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-teal-500 outline-none" placeholder="https://..." />
-                </div>
-              </div>
-              <div className="flex items-center gap-6 mb-6">
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="store_activo" checked={currentStore.activo} onChange={e => setCurrentStore({ ...currentStore, activo: e.target.checked })} className="w-4 h-4 text-teal-600 rounded" />
-                  <label htmlFor="store_activo" className="text-sm font-medium text-gray-700 dark:text-gray-300">Tienda Activa</label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="qr_activo" checked={currentStore.qr_activo} onChange={e => setCurrentStore({ ...currentStore, qr_activo: e.target.checked })} className="w-4 h-4 text-teal-600 rounded" />
-                  <label htmlFor="qr_activo" className="text-sm font-medium text-gray-700 dark:text-gray-300">Token QR Activo</label>
-                </div>
-              </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-                <button type="button" onClick={closeModal} className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg font-medium transition-colors">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-[#1D9492] hover:bg-[#167876] text-white rounded-lg font-medium transition-colors flex items-center gap-2">
-                  <Save className="w-4 h-4" /> Guardar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+          ) : filteredStores.length === 0 ? (
+            <div className="text-center py-16 bg-white dark:bg-[#1A1F2E] rounded-xl border border-gray-100 dark:border-white/5">
+              <Store className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+              <h3 className="text-base font-medium text-gray-700 dark:text-gray-300">No se encontraron tiendas</h3>
+              <p className="text-sm text-gray-400 mt-1">Intenta con otros filtros o añade una nueva tienda.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredStores.map((store) => (
+                <StoreCard
+                  key={store.id}
+                  store={store}
+                  onToggleActivo={handleToggleActivo}
+                  onToggleQR={handleToggleQR}
+                  onRegenerarQR={handleRegenerarQR}
+                  onEdit={openModal}
+                  onDelete={setStoreToDelete}
+                  onViewDetails={setSelectedStoreDetails}
+                  actionLoadingId={actionLoadingId}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
+
+      {/* Modal para Crear/Editar Tienda */}
+      <StoreModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        onSubmit={handleSubmit}
+        currentStore={currentStore}
+        onChange={handleFieldChange}
+        vendors={vendors}
+        isSubmitting={isSubmitting}
+        modalError={modalError}
+      />
+
+      {/* Modal de Confirmación de Eliminación */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(storeToDelete)}
+        onClose={() => setStoreToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="¿Eliminar Tienda?"
+        description={`¿Estás seguro de que deseas eliminar permanentemente la tienda "${storeToDelete?.nombre}"? Esta acción borrará también sus productos, categorías y registros asociados.`}
+        confirmText="Eliminar Tienda"
+        isDeleting={isDeleting}
+      />
     </div>
   );
 };
