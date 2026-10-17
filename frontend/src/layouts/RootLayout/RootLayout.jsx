@@ -26,7 +26,7 @@ const RootLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-100 dark:bg-[#1A1F2E]">
+    <div className="flex h-full w-full overflow-hidden bg-slate-100 dark:bg-[#1A1F2E]">
       <Sidebar
         isMobile={isMobile}
         isMobileOpen={isMobileMenuOpen}
@@ -46,7 +46,7 @@ const RootLayout = () => {
 
           <div className="absolute inset-0 bg-white/10 dark:bg-[#0F1420]/30 pointer-events-none" />
 
-          <div className="relative h-full overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <div className="relative h-full overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
             <Outlet />
           </div>
         </div>

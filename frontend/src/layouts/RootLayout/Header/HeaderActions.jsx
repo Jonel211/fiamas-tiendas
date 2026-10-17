@@ -9,7 +9,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { logout } from '@/services/authService';
+import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useToast } from '@/context/ToastContext';
 import HeaderIconButton from './HeaderIconButton';
 import ProfileMenu from './ProfileMenu';
 import LogoutModal from '../Sidebar/LogoutModal';
@@ -21,13 +23,17 @@ import iconProfile from '@/assets/icons/logo.png';
 
 const HeaderActions = () => {
   const navigate = useNavigate();
+  const { logout: authContextLogout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const toast = useToast();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handleConfirmLogout = () => {
     setShowLogoutModal(false);
     logout();
+    authContextLogout();
+    toast.info('Sesión cerrada', 'Has cerrado sesión exitosamente.');
     navigate('/auth/login');
   };
 

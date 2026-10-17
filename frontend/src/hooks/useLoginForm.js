@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 // Hook para manejar el login
 export const useLoginForm = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const toast = useToast();
   const [form, setForm] = useState({ email: '', password: '', remember: false });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,6 +62,7 @@ export const useLoginForm = () => {
         password: form.password,
         remember: form.remember,
       });
+      toast.success('¡Bienvenido!', 'Has iniciado sesión correctamente.');
       navigate('/panel');
     } catch (error) {
       setServerError(error.message || 'Error al iniciar sesión');

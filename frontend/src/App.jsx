@@ -10,14 +10,16 @@ import ReportsPage from './pages/ReportsPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 import ProfilePage from './pages/ProfilePage';
 import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './components/modules/Auth/ProtectedRoute';
 
 // App principal
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
+      <ToastProvider>
+        <BrowserRouter>
+          <Routes>
           {/* Landing pública */}
           <Route path="/" element={<LandingPage />} />
 
@@ -41,6 +43,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   );
 }

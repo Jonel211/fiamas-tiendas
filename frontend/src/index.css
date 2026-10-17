@@ -4,17 +4,53 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
 body {
-  background-color: #f1f5f9;
-  font-family: 'Inter', sans-serif;
-}
-
-/* Previene scroll del body cuando el layout raíz controla el scroll interno */
-html, body {
   height: 100%;
   margin: 0;
+  padding: 0;
+  background-color: #f1f5f9;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
 }
 
 #root {
   height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Animación de entrada para mensajes flotantes (Toast) */
+@keyframes toastSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.96);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-toast-in {
+  animation: toastSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Transición suave entre vistas sin pantallazos blancos */
+@keyframes pageSoftFade {
+  from {
+    opacity: 0.35;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-soft {
+  animation: pageSoftFade 0.22s ease-out forwards;
 }

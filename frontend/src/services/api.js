@@ -24,10 +24,18 @@ export const apiRequest = async (endpoint, options = {}) => {
 
   try {
     const response = await fetch(url, config);
-    const data = await response.json();
+    let data = {};
+    const contentType = response.headers.get("content-type");
+
+    if (contentType && contentType.includes("application/json")) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      data = { error: text || `Error del servidor (${response.status})` };
+    }
 
     if (!response.ok) {
-      throw new Error(data.error || data.message || "Credenciales incorrectas");
+      throw new Error(data.error || data.message || `Error del servidor (${response.status})`);
     }
 
     return data;

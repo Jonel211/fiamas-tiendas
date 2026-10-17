@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Send, AlertTriangle, Bell, Mail, Smartphone, MessageCircle, Plus, X, Search, Clock } from 'lucide-react';
 import iconAvisos from '@/assets/icons/sidebar/avisos.png';
 
@@ -42,13 +43,11 @@ const AnnouncementsPage = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="space-y-4">
       {/* Cabecera */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-teal-50 dark:bg-teal-900/20 rounded-xl flex items-center justify-center">
-            <img src={iconAvisos} alt="" className="w-6 h-6 object-contain" />
-          </div>
+          <img src={iconAvisos} alt="Avisos" className="w-9 h-9 sm:w-10 sm:h-10 object-contain flex-shrink-0" />
           <div>
             <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Avisos y Notificaciones</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">Bandeja de avisos emitidos a tenderos.</p>
@@ -90,7 +89,7 @@ const AnnouncementsPage = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
                   <span className={`text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${item.priority === 'alta' ? 'bg-red-100 text-red-700' :
-                      item.priority === 'media' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'
+                    item.priority === 'media' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'
                     }`}>
                     Prioridad {item.priority}
                   </span>
@@ -122,8 +121,12 @@ const AnnouncementsPage = () => {
       </div>
 
       {/* Modal Emisión de Aviso */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      {isModalOpen && createPortal(
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setIsModalOpen(false); }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          style={{ top: 0, left: 0, right: 0, bottom: 0, margin: 0 }}
+        >
           <div className="bg-white dark:bg-[#1A1F2E] rounded-xl shadow-xl w-full max-w-2xl overflow-hidden border border-gray-100 dark:border-gray-800">
             <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800/30">
               <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
