@@ -1,0 +1,45 @@
+/* src/components/modules/Landing/HowItWorks/StepperPanel.css */
+
+.stepper__panel {
+  position: absolute; inset: 32px 30px;
+  display: flex; flex-direction: column; gap: 14px;
+  opacity: 0; transform: translateY(14px);
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease), transform 0.4s var(--ease);
+}
+.stepper__panel.is-active {
+  opacity: 1; transform: none; pointer-events: auto;
+}
+.stepper__panel h3 { font-size: 1.2rem; }
+.stepper__panel > p { font-size: 0.94rem; color: var(--ink-muted); line-height: 1.6; }
+
+/* Mock visual dentro del panel */
+.mock {
+  background: var(--cream); border-radius: var(--radius-md);
+  padding: 16px; display: flex; flex-direction: column;
+  gap: 10px; margin-bottom: 6px;
+}
+.mock__bar {
+  height: 10px; border-radius: 999px; background: rgba(43, 45, 66, 0.14);
+}
+.mock__btn {
+  align-self: flex-start; margin-top: 6px;
+  background: var(--green); color: var(--white);
+  font-size: 0.78rem; font-weight: 600;
+  padding: 8px 16px; border-radius: 999px;
+}
+.mock__row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--white); border-radius: 10px;
+  padding: 10px 12px; font-size: 0.85rem;
+  box-shadow: var(--shadow-card);
+}
+.mock__row > span:first-child { flex: 1; }
+.mock__col { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.mock__col small { font-size: 0.7rem; color: var(--ink-muted); }
+.mock__price { font-weight: 700; }
+.mock__avatar {
+  width: 30px; height: 30px; border-radius: 50%; color: var(--white);
+  font-size: 0.7rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}

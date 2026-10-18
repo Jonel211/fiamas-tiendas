@@ -1,0 +1,14 @@
+/* src/components/modules/Landing/Features/FeaturesSection.css */
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 22px;
+}
+
+@media (max-width: 980px) {
+  .features { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 760px) {
+  .features { grid-template-columns: 1fr; }
+}

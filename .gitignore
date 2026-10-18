@@ -20,6 +20,8 @@ pnpm-debug.log*
 # Base de Datos
 *.sql
 *.sqlite
+backend/backups/*
+!backend/backups/.gitkeep
 
 # Herramientas del Sistema
 .DS_Store

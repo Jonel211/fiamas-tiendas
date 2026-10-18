@@ -83,7 +83,12 @@ Alerta.belongsTo(Tienda, { foreignKey: 'tienda_id', as: 'tienda' });
 Alerta.belongsTo(Cliente, { foreignKey: 'cliente_id', as: 'cliente' });
 
 // Producto <-> Alerta
+Producto.hasMany(Alerta, { foreignKey: 'producto_id', as: 'alertas' });
 Alerta.belongsTo(Producto, { foreignKey: 'producto_id', as: 'producto' });
+
+// Tendero <-> Alerta (Destinatario)
+Tendero.hasMany(Alerta, { foreignKey: 'destinatario_id', as: 'alertasRecibidas', constraints: false });
+Alerta.belongsTo(Tendero, { foreignKey: 'destinatario_id', as: 'destinatarioTendero', constraints: false });
 
 // Cliente <-> ScoringHistorial
 Cliente.hasMany(ScoringHistorial, { foreignKey: 'cliente_id', as: 'scoringHistorial' });
@@ -99,7 +104,6 @@ LogSistema.belongsTo(Tienda, { foreignKey: 'tienda_id', as: 'tienda' });
 // Asociaciones recíprocas adicionales
 Producto.hasMany(FiadoDetalle, { foreignKey: 'producto_id', as: 'detalles' });
 Cliente.hasMany(Alerta, { foreignKey: 'cliente_id', as: 'alertas' });
-Producto.hasMany(Alerta, { foreignKey: 'producto_id', as: 'alertas' });
 Cliente.hasMany(ClienteTienda, { foreignKey: 'cliente_id', as: 'tiendasVinculadas' });
 Tienda.hasMany(ClienteTienda, { foreignKey: 'tienda_id', as: 'clientesVinculados' });
 Tienda.hasMany(ScoringHistorial, { foreignKey: 'tienda_id', as: 'scoringHistoriales' });

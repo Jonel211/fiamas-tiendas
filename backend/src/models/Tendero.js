@@ -31,7 +31,7 @@ const Tendero = sequelize.define('Tendero', {
         unique: true
     },
     foto_perfil_url: {
-        type: DataTypes.STRING(500),
+        type: DataTypes.TEXT,
         allowNull: true,
         comment: 'Foto de perfil del tendero'
     },

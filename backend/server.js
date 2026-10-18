@@ -4,22 +4,26 @@ const os = require('os');
 const app = require('./src/app');
 const { testConnection, sequelize } = require('./src/config/database');
 
-// Registrar modelos y asociaciones (IMPORTANTE: debe ir antes del sync)
+// Registrar modelos y asociaciones
 require('./src/models');
 
-// El puerto lo determina Render en producción, o 3000 en desarrollo local
 const PORT = process.env.PORT || 3000;
 
-// Función para obtener la IP local de la PC y mostrarla en consola
+// Obtener automáticamente la IP local de la PC
 const getLocalIP = () => {
     const interfaces = os.networkInterfaces();
+
     for (const interfaceName of Object.keys(interfaces)) {
         for (const network of interfaces[interfaceName]) {
-            if (network.family === 'IPv4' && !network.internal) {
+            if (
+                network.family === 'IPv4' &&
+                !network.internal
+            ) {
                 return network.address;
             }
         }
     }
+
     return 'localhost';
 };
 
@@ -41,26 +45,21 @@ const startServer = async () => {
             console.log('Modo producción o DB_SYNC_ALTER deshabilitado: omitiendo alter automático.');
         }
 
-        // 3. Obtener IP local (solo informativo para desarrollo)
+        // 3. Obtener IP automáticamente
         const localIP = getLocalIP();
 
         // 4. Iniciar servidor
-        // '0.0.0.0' es CRÍTICO: permite que Docker y Render enruten el tráfico al contenedor
         app.listen(PORT, '0.0.0.0', () => {
             console.log('');
-            console.log('======================================');
-            console.log('       FIAMAS - API BACKEND');
-            console.log('======================================');
+            console.log('FIAMAS - API BACKEND');
             console.log(`Local:    http://localhost:${PORT}`);
             console.log(`Red:      http://${localIP}:${PORT}`);
-            console.log('======================================');
             console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
             console.log('');
         });
 
     } catch (error) {
-        console.error(' Error fatal al iniciar el servidor:', error);
-        // Salir con código 1 para que Docker/Render sepa que el inicio falló y lo reintente
+        console.error('Error al iniciar el servidor:', error);
         process.exit(1);
     }
 };

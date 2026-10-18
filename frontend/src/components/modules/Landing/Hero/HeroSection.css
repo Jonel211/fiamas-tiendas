@@ -1,0 +1,70 @@
+/* src/components/modules/Landing/Hero/HeroSection.css */
+
+.hero {
+  position: relative;
+  background: var(--navy);
+  color: var(--white);
+  overflow: hidden;
+  padding-top: 30px;
+  min-height: calc(100vh - 76px);
+  display: flex;
+  align-items: center;
+}
+
+.hero__rings {
+  position: absolute; top: -14px; left: 0; right: 0;
+  display: flex; justify-content: space-evenly; padding: 0 40px;
+  z-index: 2; pointer-events: none;
+}
+.hero__rings span {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 5px solid var(--cream); background: var(--navy);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15);
+}
+
+.hero__inner {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  align-items: center;
+  gap: 48px;
+  padding: 88px 24px 96px;
+  width: 100%;
+}
+
+.hero__title {
+  font-size: clamp(2.1rem, 4.2vw, 3.35rem); font-weight: 700;
+  letter-spacing: -0.01em; color: var(--white);
+  opacity: 0; animation: heroRise 0.7s var(--ease) forwards;
+}
+.hero__subtitle {
+  margin-top: 22px; max-width: 46ch; font-size: 1.12rem;
+  line-height: 1.6; color: rgba(255, 255, 255, 0.8);
+  opacity: 0; animation: heroRise 0.7s var(--ease) 0.1s forwards;
+}
+.hero__actions {
+  margin-top: 34px; display: flex; flex-wrap: wrap; gap: 14px;
+  opacity: 0; animation: heroRise 0.7s var(--ease) 0.2s forwards;
+}
+
+@keyframes heroRise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hero__visual {
+  display: flex; justify-content: center;
+  opacity: 0; animation: heroPop 0.75s var(--ease) 0.15s forwards;
+}
+@keyframes heroPop {
+  from { opacity: 0; transform: translateY(22px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 980px) {
+  .hero__inner { grid-template-columns: 1fr; padding-top: 60px; }
+  .hero__visual { order: -1; margin-bottom: 20px; }
+}
+@media (max-width: 760px) {
+  .hero__rings span { width: 18px; height: 18px; border-width: 4px; }
+  .hero__inner { padding: 40px 20px 64px; }
+}

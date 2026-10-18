@@ -1,0 +1,60 @@
+/* src/components/modules/Landing/Navbar/Navbar.css */
+
+.navbar {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-soft);
+}
+.navbar__inner { display: flex; align-items: center; gap: 28px; height: 76px; }
+
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-display); font-weight: 700; font-size: 1.25rem;
+  color: var(--navy); margin-right: auto;
+}
+.brand__mark { width: 32px; height: 32px; flex-shrink: 0; }
+
+.nav__list { display: flex; align-items: center; gap: 30px; }
+.nav__link {
+  font-size: 0.96rem; font-weight: 500; color: var(--ink-muted);
+  position: relative; padding: 6px 0; transition: color 0.15s ease;
+}
+.nav__link::after {
+  content: ""; position: absolute; left: 0; bottom: -2px;
+  width: 100%; height: 2px; background: var(--green);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.2s ease;
+}
+.nav__link:hover { color: var(--navy); }
+.nav__link.active { color: var(--navy); }
+.nav__link.active::after { transform: scaleX(1); }
+
+.navbar__cta { flex-shrink: 0; }
+.nav__list-cta { display: none; }
+
+.nav__toggle {
+  display: none; flex-direction: column; justify-content: center;
+  gap: 5px; width: 40px; height: 40px;
+}
+.nav__toggle span {
+  width: 22px; height: 2px; background: var(--navy);
+  transition: transform 0.25s ease, opacity 0.2s ease; margin: 0 auto;
+}
+.nav__toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav__toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.nav__toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+@media (max-width: 760px) {
+  .nav, .navbar__cta { display: none; }
+  .nav__toggle { display: flex; }
+  .navbar.nav-open .nav {
+    display: block; position: absolute; top: 76px; left: 0; right: 0;
+    background: var(--white); border-bottom: 1px solid var(--border-soft);
+    padding: 10px 24px 20px;
+  }
+  .navbar.nav-open .nav__list { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .navbar.nav-open .nav__link { display: block; padding: 10px 0; width: 100%; }
+  .navbar.nav-open .nav__list-cta { display: block; width: 100%; margin-top: 8px; }
+  .nav__list-cta .btn { width: 100%; }
+}
