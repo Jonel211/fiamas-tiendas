@@ -63,9 +63,9 @@ const Alerta = sequelize.define('Alerta', {
         allowNull: false
     },
     canal: {
-        type: DataTypes.STRING(20),
-        defaultValue: 'interno',
-        comment: 'interno | whatsapp | sms | push'
+        type: DataTypes.STRING(100),
+        defaultValue: 'aplicacion',
+        comment: 'whatsapp,sms,aplicacion'
     },
     estado: {
         type: DataTypes.STRING(20),

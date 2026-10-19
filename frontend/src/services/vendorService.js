@@ -15,6 +15,8 @@ export const getTenderos = async (forceRefresh = false) => {
   return cachedTenderos;
 };
 
+export const getVendors = getTenderos;
+
 // Crear un tendero
 export const createTendero = async (vendorData) => {
   cachedTenderos = null;

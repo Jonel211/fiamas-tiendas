@@ -14,8 +14,14 @@ export const apiRequest = async (endpoint, options = {}) => {
     defaultHeaders["Authorization"] = `Bearer ${token}`;
   }
 
+  let body = options.body;
+  if (body && typeof body === 'object' && !(body instanceof FormData) && !(body instanceof Blob)) {
+    body = JSON.stringify(body);
+  }
+
   const config = {
     ...options,
+    body,
     headers: {
       ...defaultHeaders,
       ...options.headers,

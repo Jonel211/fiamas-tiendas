@@ -3,11 +3,13 @@
  * Fila individual de la tabla de tenderos.
  */
 
-import { Eye, Pencil } from 'lucide-react';
+import { Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { STATUS_STYLES } from './vendorsData';
 
 const VendorRow = ({ nombre, tienda, estado, actividad }) => {
-  const s = STATUS_STYLES[estado];
+  const navigate = useNavigate();
+  const s = STATUS_STYLES[estado] || STATUS_STYLES.Activo;
 
   return (
     <tr className="border-b border-gray-100/60 dark:border-white/5 hover:bg-white/20 dark:hover:bg-white/5 transition-colors">
@@ -30,11 +32,12 @@ const VendorRow = ({ nombre, tienda, estado, actividad }) => {
       </td>
       <td className="py-3">
         <div className="flex items-center justify-center gap-1 sm:gap-2">
-          <button className="p-1.5 text-[#1D9492] hover:bg-[#1D9492]/10 rounded-md transition-colors" title="Ver">
+          <button
+            onClick={() => navigate('/panel/tenderos')}
+            className="p-1.5 text-[#1D9492] hover:bg-[#1D9492]/10 rounded-md transition-colors"
+            title="Ir a Tenderos"
+          >
             <Eye className="w-4 h-4" />
-          </button>
-          <button className="p-1.5 text-[#1D9492] hover:bg-[#1D9492]/10 rounded-md transition-colors" title="Editar">
-            <Pencil className="w-4 h-4" />
           </button>
         </div>
       </td>

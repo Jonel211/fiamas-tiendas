@@ -42,7 +42,11 @@ const HeaderActions = () => {
   return (
     <>
       <div className="flex items-center gap-0.5 sm:gap-1 lg:gap-2">
-        <HeaderIconButton icon={iconBell} label="Notificaciones" />
+        <HeaderIconButton
+          icon={iconBell}
+          label="Notificaciones"
+          onClick={() => navigate('/panel/avisos')}
+        />
 
         <HeaderIconButton
           icon={isDark ? iconSun : iconMoon}

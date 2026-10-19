@@ -5,10 +5,10 @@
 
 import { STATUS_DATA } from './statusChartData';
 
-const StatusLegend = () => {
+const StatusLegend = ({ data = STATUS_DATA }) => {
   return (
     <div className="sm:col-span-2 flex flex-col gap-3 sm:gap-4">
-      {STATUS_DATA.map((item) => (
+      {data.map((item) => (
         <div key={item.name}>
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-2">
@@ -21,12 +21,12 @@ const StatusLegend = () => {
               </span>
             </div>
             <span className="text-[13px] font-bold text-gray-800 dark:text-slate-100">
-              {item.value}
+              {item.count !== undefined ? `${item.count} (${item.value}%)` : `${item.value}%`}
             </span>
           </div>
           <div className="h-1.5 bg-gray-200/50 dark:bg-white/10 rounded-full overflow-hidden">
             <div
-              className="h-full rounded-full"
+              className="h-full rounded-full transition-all duration-500"
               style={{ width: `${item.value}%`, backgroundColor: item.color }}
             />
           </div>

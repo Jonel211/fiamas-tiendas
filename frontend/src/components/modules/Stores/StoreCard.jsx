@@ -15,7 +15,7 @@ const StoreCard = ({
     : 'Sin tendero asignado';
 
   return (
-    <div className="bg-white dark:bg-[#1A1F2E] rounded-xl shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden flex flex-col hover:border-teal-500/30 transition-all">
+    <div className="bg-white/85 dark:bg-[#1A1F2E]/80 rounded-md shadow-sm border border-white/50 dark:border-white/10 overflow-hidden flex flex-col hover:border-[#1D9492]/40 hover:shadow-md transition-all backdrop-blur-sm">
       <div className="p-5 flex items-start gap-4">
         {/* Foto de la tienda con hover interactivo para ver más detalle */}
         <div
