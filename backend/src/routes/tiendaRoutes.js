@@ -12,81 +12,88 @@ const { verificarToken, verificarRol } = require('../middleware/authMiddleware')
 router.get(
     '/',
     verificarToken,
-    verificarRol(['admin']), // Solo admin puede ver todas las tiendas
+    verificarRol(['admin']),
     tiendaController.getTiendasAdmin
 );
 
-// 1. OBTENER DATOS DE LA TIENDA PROPIA (TENDERO LOGUEADO)
+// 1. OBTENER TODAS LAS TIENDAS DEL TENDERO LOGUEADO
+// GET /api/tiendas/mis-tiendas
+router.get(
+    '/mis-tiendas',
+    verificarToken,
+    verificarRol(['tendero', 'admin']),
+    tiendaController.getMisTiendas
+);
+
+// 2. OBTENER DATOS DE LA TIENDA PROPIA (TENDERO LOGUEADO)
 // GET /api/tiendas/mi-tienda
 router.get(
     '/mi-tienda',
     verificarToken,
-    verificarRol(['tendero']), // Solo tendero puede ver su tienda
+    verificarRol(['tendero']),
     tiendaController.getTienda
 );
 
-// 2. CREAR TIENDA (ADMIN O TENDERO)
+// 3. CREAR TIENDA (ADMIN O TENDERO)
 // POST /api/tiendas
-//  MODIFICADO: Ahora permite admin y tendero (para crear tiendas desde app móvil)
 router.post(
     '/',
     verificarToken,
-    verificarRol(['admin', 'tendero']), //  CAMBIO: Permite ambos roles
+    verificarRol(['admin', 'tendero']),
     tiendaController.crearTiendaAdmin
 );
 
-// 3. GENERAR/REGENERAR CÓDIGO QR (ADMIN O TENDERO)
+// 4. GENERAR/REGENERAR CÓDIGO QR (ADMIN O TENDERO)
 // POST /api/tiendas/generar-qr/:id?
 router.post(
     '/generar-qr/:id?',
     verificarToken,
-    verificarRol(['admin', 'tendero']), // Ambos pueden generar QR
+    verificarRol(['admin', 'tendero']),
     tiendaController.generarQR
 );
 
-// 4. ACTIVAR/DESACTIVAR CÓDIGO QR (ADMIN O TENDERO)
+// 5. ACTIVAR/DESACTIVAR CÓDIGO QR (ADMIN O TENDERO)
 // PUT /api/tiendas/toggle-qr/:id?
 router.put(
     '/toggle-qr/:id?',
     verificarToken,
-    verificarRol(['admin', 'tendero']), // Ambos pueden toggle QR
+    verificarRol(['admin', 'tendero']),
     tiendaController.toggleQR
 );
 
-// 5. ACTIVAR/DESACTIVAR TIENDA (PANEL ADMIN)
+// 6. ACTIVAR/DESACTIVAR TIENDA (PANEL ADMIN)
 // PUT /api/tiendas/toggle-activo/:id
 router.put(
     '/toggle-activo/:id',
     verificarToken,
-    verificarRol(['admin']), // Solo admin puede activar/desactivar tiendas
+    verificarRol(['admin']),
     tiendaController.toggleActivoTienda
 );
 
-// 6. ACTUALIZAR DATOS DE LA TIENDA (ADMIN O TENDERO)
+// 7. ACTUALIZAR DATOS DE LA TIENDA (ADMIN O TENDERO)
 // PUT /api/tiendas/:id?
 router.put(
     '/:id?',
     verificarToken,
-    verificarRol(['admin', 'tendero']), // Ambos pueden actualizar
+    verificarRol(['admin', 'tendero']),
     tiendaController.actualizarTienda
 );
 
-// 7. OBTENER RESUMEN/DASHBOARD DE LA TIENDA (TENDERO LOGUEADO)
+// 8. OBTENER RESUMEN/DASHBOARD DE LA TIENDA
 // GET /api/tiendas/resumen
 router.get(
     '/resumen',
     verificarToken,
-    verificarRol(['tendero']), // Solo tendero puede ver su resumen
+    verificarRol(['tendero']),
     tiendaController.getResumenTienda
 );
 
-// 8. ELIMINAR TIENDA (ADMIN O TENDERO)
+// 9. ELIMINAR TIENDA (ADMIN)
 // DELETE /api/tiendas/:id
-//  MODIFICADO: Ahora permite admin y tendero (para eliminar desde app móvil)
 router.delete(
     '/:id',
     verificarToken,
-    verificarRol(['admin', 'tendero']), //  CAMBIO: Permite ambos roles
+    verificarRol(['admin', 'tendero']),
     tiendaController.eliminarTiendaAdmin
 );
 

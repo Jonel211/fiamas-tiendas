@@ -74,7 +74,7 @@ exports.crearTiendaAdmin = async (req, res) => {
     }
 };
 
-// 1. OBTENER DATOS DE LA TIENDA
+// 1. OBTENER DATOS DE LA TIENDA (UNA SOLA)
 exports.getTienda = async (req, res) => {
     try {
         const tenderoId = req.usuario.id;
@@ -91,6 +91,26 @@ exports.getTienda = async (req, res) => {
     } catch (error) {
         console.error('Error al obtener tienda:', error);
         res.status(500).json({ error: 'Error interno al obtener la tienda.' });
+    }
+};
+
+//  NUEVA FUNCIÓN: OBTENER TODAS LAS TIENDAS DEL TENDERO
+exports.getMisTiendas = async (req, res) => {
+    try {
+        const tenderoId = req.usuario.id;
+
+        const tiendas = await Tienda.findAll({
+            where: { tendero_id: tenderoId, activo: true },
+            order: [['creado_en', 'DESC']]
+        });
+
+        res.status(200).json({
+            msg: 'Tiendas obtenidas exitosamente',
+            tiendas
+        });
+    } catch (error) {
+        console.error('Error al obtener tiendas:', error);
+        res.status(500).json({ error: 'Error interno al obtener las tiendas.' });
     }
 };
 
