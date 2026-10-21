@@ -26,6 +26,7 @@ const avisoRoutes = require('./routes/avisoRoutes');
 const reporteRoutes = require('./routes/reporteRoutes');
 const notificacionRoutes = require('./routes/notificacionRoutes');
 const clienteRoutes = require('./routes/clienteRoutes');
+const clienteAppRoutes = require('./routes/clienteAppRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/tiendas', tiendaRoutes);
@@ -36,6 +37,7 @@ app.use('/api/avisos', avisoRoutes);
 app.use('/api/reportes', reporteRoutes);
 app.use('/api/notificaciones', notificacionRoutes);
 app.use('/api/clientes', clienteRoutes);
+app.use('/api/app-cliente', clienteAppRoutes);
 
 // Manejo de rutas no encontradas (404)
 app.use((req, res, next) => {
