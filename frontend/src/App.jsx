@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import RootLayout from './layouts/RootLayout/RootLayout';
-import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import StoresPage from './pages/StoresPage';
@@ -20,29 +19,30 @@ function App() {
       <ToastProvider>
         <BrowserRouter>
           <Routes>
-          {/* Landing pública */}
-          <Route path="/" element={<LandingPage />} />
+            {/* Redirección por defecto al Login */}
+            <Route path="/" element={<Navigate to="/auth/login" replace />} />
+            <Route path="/login" element={<Navigate to="/auth/login" replace />} />
 
-          {/* Login */}
-          <Route path="/auth/login" element={<LoginPage />} />
+            {/* Login */}
+            <Route path="/auth/login" element={<LoginPage />} />
 
-          {/* Panel privado (protegido) */}
-          <Route path="/panel" element={<ProtectedRoute />}>
-            <Route element={<RootLayout />}>
-              <Route index element={<DashboardPage />} />
-              <Route path="tiendas" element={<StoresPage />} />
-              <Route path="tenderos" element={<VendorsPage />} />
-              <Route path="backups" element={<BackupsPage />} />
-              <Route path="reportes" element={<ReportsPage />} />
-              <Route path="avisos" element={<AnnouncementsPage />} />
-              <Route path="configuracion" element={<ProfilePage />} />
+            {/* Panel privado (protegido) */}
+            <Route path="/panel" element={<ProtectedRoute />}>
+              <Route element={<RootLayout />}>
+                <Route index element={<DashboardPage />} />
+                <Route path="tiendas" element={<StoresPage />} />
+                <Route path="tenderos" element={<VendorsPage />} />
+                <Route path="backups" element={<BackupsPage />} />
+                <Route path="reportes" element={<ReportsPage />} />
+                <Route path="avisos" element={<AnnouncementsPage />} />
+                <Route path="configuracion" element={<ProfilePage />} />
+              </Route>
             </Route>
-          </Route>
 
-          {/* Cualquier ruta desconocida → landing */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+            {/* Cualquier ruta desconocida → Login */}
+            <Route path="*" element={<Navigate to="/auth/login" replace />} />
+          </Routes>
+        </BrowserRouter>
       </ToastProvider>
     </AuthProvider>
   );

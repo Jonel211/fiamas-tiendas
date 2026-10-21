@@ -6,11 +6,19 @@
  * Incluye imagen espejada decorativa en el fondo y confetti.
  */
 
+import { Navigate } from 'react-router-dom';
 import AuthBranding from '../components/modules/Auth/AuthBranding';
 import LoginForm from '../components/modules/Auth/LoginForm';
+import { useAuth } from '../context/AuthContext';
 import tiendaImg from '@/assets/images/tienda.png';
 
 const LoginPage = () => {
+  const { isAuthenticated } = useAuth();
+
+  if (isAuthenticated) {
+    return <Navigate to="/panel" replace />;
+  }
+
   return (
     <div
       className="min-h-screen relative flex items-center justify-center p-4 sm:p-6 overflow-hidden"
