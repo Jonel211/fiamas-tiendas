@@ -7,7 +7,7 @@ const { Op } = require('sequelize');
 // ═══════════════════════════════════════════════════════════════════════════
 exports.miPerfil = async (req, res) => {
     try {
-        const clienteId = req.usuario.id; // ✅ El ID del cliente logueado
+        const clienteId = req.usuario.id;
 
         const cliente = await Cliente.findByPk(clienteId, {
             attributes: ['id', 'telefono', 'nombres', 'apellidos', 'direccion', 'foto_perfil_url', 'activo', 'creado_en']
@@ -21,7 +21,6 @@ exports.miPerfil = async (req, res) => {
             msg: 'Perfil obtenido exitosamente.',
             cliente
         });
-
     } catch (error) {
         console.error('Error al obtener perfil:', error);
         res.status(500).json({ error: 'Error interno al obtener el perfil.' });
@@ -63,7 +62,6 @@ exports.actualizarMiPerfil = async (req, res) => {
                 foto_perfil_url: cliente.foto_perfil_url
             }
         });
-
     } catch (error) {
         console.error('Error al actualizar perfil:', error);
         res.status(500).json({ error: 'Error interno al actualizar el perfil.' });
@@ -112,7 +110,6 @@ exports.misTiendas = async (req, res) => {
             total: tiendas.length,
             tiendas
         });
-
     } catch (error) {
         console.error('Error al obtener tiendas:', error);
         res.status(500).json({ error: 'Error interno al obtener las tiendas.' });
@@ -128,11 +125,9 @@ exports.misFiados = async (req, res) => {
         const clienteId = req.usuario.id;
         const tiendaId = req.query.tienda_id;
 
-        // Construir filtros
         const whereFiado = { cliente_id: clienteId };
 
         if (tiendaId) {
-            // Validar que el cliente esté vinculado a esa tienda
             const vinculacion = await ClienteTienda.findOne({
                 where: { cliente_id: clienteId, tienda_id: tiendaId, activo: true }
             });
@@ -162,7 +157,8 @@ exports.misFiados = async (req, res) => {
                 {
                     model: Pago,
                     as: 'pagos',
-                    attributes: ['id', 'monto', 'fecha_pago', 'metodo_pago'],
+                    // ✅ CORREGIDO: Se eliminó 'metodo_pago' porque no existe en la BD
+                    attributes: ['id', 'monto', 'fecha_pago', 'notas'],
                     order: [['fecha_pago', 'DESC']]
                 }
             ],
@@ -188,7 +184,7 @@ exports.misFiados = async (req, res) => {
                 id: pago.id,
                 monto: pago.monto,
                 fecha_pago: pago.fecha_pago,
-                metodo_pago: pago.metodo_pago
+                notas: pago.notas || null // ✅ CORREGIDO: Se eliminó 'metodo_pago'
             }))
         }));
 
@@ -197,7 +193,6 @@ exports.misFiados = async (req, res) => {
             total: fiadosFormateados.length,
             fiados: fiadosFormateados
         });
-
     } catch (error) {
         console.error('Error al obtener fiados:', error);
         res.status(500).json({ error: 'Error interno al obtener los fiados.' });
@@ -212,7 +207,6 @@ exports.miResumen = async (req, res) => {
     try {
         const clienteId = req.usuario.id;
 
-        // Obtener todas las vinculaciones activas
         const vinculaciones = await ClienteTienda.findAll({
             where: { cliente_id: clienteId, activo: true },
             include: [{
@@ -223,7 +217,6 @@ exports.miResumen = async (req, res) => {
             }]
         });
 
-        // Calcular estadísticas por tienda
         const resumenPorTienda = await Promise.all(
             vinculaciones.map(async (vinculo) => {
                 const fiadosActivos = await Fiado.count({
@@ -269,7 +262,6 @@ exports.miResumen = async (req, res) => {
             })
         );
 
-        // Resumen global
         const totalSaldo = resumenPorTienda.reduce((sum, t) => sum + Number(t.saldo_actual), 0);
         const totalLimite = resumenPorTienda.reduce((sum, t) => sum + Number(t.limite_credito), 0);
 
@@ -285,7 +277,6 @@ exports.miResumen = async (req, res) => {
             },
             detalle_por_tienda: resumenPorTienda
         });
-
     } catch (error) {
         console.error('Error al obtener resumen:', error);
         res.status(500).json({ error: 'Error interno al obtener el resumen.' });
@@ -343,7 +334,7 @@ exports.misPagos = async (req, res) => {
             id: pago.id,
             monto: pago.monto,
             fecha_pago: pago.fecha_pago,
-            metodo_pago: pago.metodo_pago,
+            // ✅ CORREGIDO: Se eliminó 'metodo_pago'
             referencia: pago.referencia,
             notas: pago.notas,
             fiado: {
@@ -362,7 +353,6 @@ exports.misPagos = async (req, res) => {
             total_pagado: totalPagado,
             pagos: pagosFormateados
         });
-
     } catch (error) {
         console.error('Error al obtener pagos:', error);
         res.status(500).json({ error: 'Error interno al obtener los pagos.' });

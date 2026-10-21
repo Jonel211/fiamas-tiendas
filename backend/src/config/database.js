@@ -10,7 +10,8 @@ const sequelize = new Sequelize(
         host: process.env.DB_HOST,
         port: process.env.DB_PORT,
         dialect: 'postgres',
-        logging: false,
+        logging: false, // Cambia a true solo si necesitas depurar consultas en Render
+        //  POOL OPTIMIZADO PARA EVITAR "too many connections"
         pool: {
             max: 5,
             min: 0,
