@@ -39,6 +39,12 @@ exports.getAvisos = async (req, res) => {
             offset
         });
 
+        // Tenderos activos, una sola vez, para calcular quién leyó cada difusión
+        const tenderosActivos = await Tendero.findAll({
+            where: { activo: true },
+            attributes: ['id', 'nombres', 'apellidos']
+        });
+
         const avisos = rows.map(a => {
             const rawChannels = a.canal ? a.canal.split(',') : ['aplicacion'];
             // Filtrar únicamente los canales permitidos
@@ -49,6 +55,25 @@ exports.getAvisos = async (req, res) => {
                 : (a.destinatarioTendero
                     ? `${a.destinatarioTendero.nombres} ${a.destinatarioTendero.apellidos}`
                     : 'Tendero específico');
+
+            // Lecturas: difusión (leida_por) o aviso dirigido (estado)
+            let lecturas;
+            if (a.destinatario_tipo === 'todos') {
+                const leyeron = tenderosActivos.filter(t => (a.leida_por || []).includes(t.id));
+                lecturas = {
+                    leidos: leyeron.length,
+                    total: tenderosActivos.length,
+                    tenderos: leyeron.map(t => `${t.nombres} ${t.apellidos}`)
+                };
+            } else {
+                lecturas = {
+                    leidos: a.estado === 'leida' ? 1 : 0,
+                    total: 1,
+                    tenderos: a.estado === 'leida' && a.destinatarioTendero
+                        ? [`${a.destinatarioTendero.nombres} ${a.destinatarioTendero.apellidos}`]
+                        : []
+                };
+            }
 
             return {
                 id: a.id,
@@ -67,7 +92,8 @@ exports.getAvisos = async (req, res) => {
                     year: 'numeric', month: '2-digit', day: '2-digit',
                     hour: '2-digit', minute: '2-digit'
                 }),
-                estado: a.estado
+                estado: a.estado,
+                lecturas
             };
         });
 
@@ -157,7 +183,12 @@ exports.crearAviso = async (req, res) => {
                     year: 'numeric', month: '2-digit', day: '2-digit',
                     hour: '2-digit', minute: '2-digit'
                 }),
-                estado: aviso.estado
+                estado: aviso.estado,
+                lecturas: {
+                    leidos: 0,
+                    total: esParaTodos ? await Tendero.count({ where: { activo: true } }) : 1,
+                    tenderos: []
+                }
             }
         });
     } catch (error) {
