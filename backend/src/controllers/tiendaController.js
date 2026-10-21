@@ -16,7 +16,7 @@ exports.getTiendasAdmin = async (req, res) => {
     }
 };
 
-// 0.1 CREAR TIENDA (PANEL ADMIN)
+// 0.1 CREAR TIENDA (PANEL ADMIN O TENDERO)
 exports.crearTiendaAdmin = async (req, res) => {
     try {
         const { nombre, tendero_id, imagen_url, direccion, ruc, telefono, activo, qr_activo } = req.body;
@@ -74,7 +74,7 @@ exports.crearTiendaAdmin = async (req, res) => {
     }
 };
 
-// 1. OBTENER DATOS DE LA TIENDA (UNA SOLA)
+// 1. OBTENER DATOS DE LA TIENDA (TENDERO LOGUEADO)
 exports.getTienda = async (req, res) => {
     try {
         const tenderoId = req.usuario.id;
@@ -94,49 +94,44 @@ exports.getTienda = async (req, res) => {
     }
 };
 
-//  NUEVA FUNCIÓN: OBTENER TODAS LAS TIENDAS DEL TENDERO
-exports.getMisTiendas = async (req, res) => {
-    try {
-        const tenderoId = req.usuario.id;
-
-        const tiendas = await Tienda.findAll({
-            where: { tendero_id: tenderoId, activo: true },
-            order: [['creado_en', 'DESC']]
-        });
-
-        res.status(200).json({
-            msg: 'Tiendas obtenidas exitosamente',
-            tiendas
-        });
-    } catch (error) {
-        console.error('Error al obtener tiendas:', error);
-        res.status(500).json({ error: 'Error interno al obtener las tiendas.' });
-    }
-};
-
-// 2. ACTUALIZAR DATOS DE LA TIENDA (ADMIN O TENDERO)
+// 2.  ACTUALIZAR DATOS DE LA TIENDA (CORREGIDO)
 exports.actualizarTienda = async (req, res) => {
     try {
         const esAdmin = req.usuario.rol === 'admin';
-        const tiendaId = req.params.id || req.body.id;
+
+        //  OBTENER EL ID CORRECTO DE LA URL (req.params.id)
+        const tiendaId = req.params.id;
+
+        if (!tiendaId) {
+            return res.status(400).json({ error: 'ID de la tienda es requerido para actualizar.' });
+        }
 
         let tienda;
+
         if (esAdmin) {
-            if (!tiendaId) {
-                return res.status(400).json({ error: 'ID de la tienda requerido para actualizar.' });
-            }
+            // Admin puede editar cualquier tienda
             tienda = await Tienda.findByPk(tiendaId);
         } else {
+            //  TENDERO: Solo puede editar SUS propias tiendas
+            // Usamos el tiendaId de la URL y verificamos que pertenezca al tendero logueado
             const tenderoId = req.usuario.id;
-            tienda = await Tienda.findOne({ where: { tendero_id: tenderoId, activo: true } });
+
+            tienda = await Tienda.findOne({
+                where: {
+                    id: tiendaId,        //  ID específico de la tienda a editar
+                    tendero_id: tenderoId, //  Verificar que sea del tendero logueado
+                    activo: true
+                }
+            });
         }
 
         if (!tienda) {
-            return res.status(404).json({ error: 'Tienda no encontrada.' });
+            return res.status(404).json({ error: 'Tienda no encontrada o no tienes permisos para editarla.' });
         }
 
-        const { nombre, imagen_url, direccion, ruc, telefono, tendero_id, activo, qr_activo } = req.body;
+        const { nombre, imagen_url, direccion, ruc, telefono, activo, qr_activo } = req.body;
 
+        // Validaciones
         if (ruc !== undefined && ruc !== null && String(ruc).trim() !== '') {
             const rucLimpio = String(ruc).trim();
             if (!/^\d{11}$/.test(rucLimpio)) {
@@ -151,23 +146,33 @@ exports.actualizarTienda = async (req, res) => {
             }
         }
 
+        // Construir objeto de actualización
         const datosActualizacion = {};
+
         if (nombre !== undefined) datosActualizacion.nombre = String(nombre).trim();
         if (imagen_url !== undefined) datosActualizacion.imagen_url = imagen_url;
         if (direccion !== undefined) datosActualizacion.direccion = direccion;
         if (ruc !== undefined) datosActualizacion.ruc = ruc ? String(ruc).trim() : null;
         if (telefono !== undefined) datosActualizacion.telefono = telefono ? String(telefono).trim() : null;
-        if (esAdmin && tendero_id !== undefined) datosActualizacion.tendero_id = tendero_id;
+
+        // Solo admin puede cambiar estos campos
         if (esAdmin && activo !== undefined) datosActualizacion.activo = activo;
         if (qr_activo !== undefined) datosActualizacion.qr_activo = qr_activo;
+
         datosActualizacion.actualizado_en = new Date();
 
+        //  ACTUALIZAR LA TIENDA CORRECTA
         await tienda.update(datosActualizacion);
 
+        // Recargar datos actualizados
         const tiendaActualizada = await Tienda.findByPk(tienda.id, {
             include: [{ model: Tendero, as: 'tendero', attributes: ['id', 'dni', 'nombres', 'apellidos', 'telefono'] }]
         });
-        res.status(200).json({ msg: 'Tienda actualizada exitosamente', tienda: tiendaActualizada });
+
+        res.status(200).json({
+            msg: 'Tienda actualizada exitosamente',
+            tienda: tiendaActualizada
+        });
     } catch (error) {
         console.error('Error al actualizar tienda:', error);
         res.status(500).json({ error: 'Error interno al actualizar la tienda.' });
