@@ -24,6 +24,7 @@ const productoRoutes = require('./routes/productoRoutes');
 const backupRoutes = require('./routes/backupRoutes');
 const avisoRoutes = require('./routes/avisoRoutes');
 const reporteRoutes = require('./routes/reporteRoutes');
+const notificacionRoutes = require('./routes/notificacionRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/tiendas', tiendaRoutes);
@@ -32,6 +33,7 @@ app.use('/api/productos', productoRoutes);
 app.use('/api/backups', backupRoutes);
 app.use('/api/avisos', avisoRoutes);
 app.use('/api/reportes', reporteRoutes);
+app.use('/api/notificaciones', notificacionRoutes);
 
 // Manejo de rutas no encontradas (404)
 app.use((req, res, next) => {

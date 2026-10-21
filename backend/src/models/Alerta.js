@@ -81,6 +81,14 @@ const Alerta = sequelize.define('Alerta', {
         type: DataTypes.DATE,
         allowNull: true
     },
+
+    leida_por: {
+        type: DataTypes.ARRAY(DataTypes.UUID),
+        allowNull: false,
+        defaultValue: [],
+        comment: 'IDs de tenderos que ya leyeron este aviso (destinatario_tipo = todos'
+    },
+
     fecha_creacion: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
