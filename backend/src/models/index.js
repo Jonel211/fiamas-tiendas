@@ -18,95 +18,84 @@ const LogSistema = require('./LogSistema');
 
 // 2. Definir las relaciones (ASOCIACIONES)
 
-// Tendero <-> Tienda
+// --- TENDERO Y TIENDA ---
 Tendero.hasMany(Tienda, { foreignKey: 'tendero_id', as: 'tiendas' });
 Tienda.belongsTo(Tendero, { foreignKey: 'tendero_id', as: 'tendero' });
 
-// Tienda <-> Categoria
+// --- TIENDA, CATEGORÍA Y PRODUCTO ---
 Tienda.hasMany(Categoria, { foreignKey: 'tienda_id', as: 'categorias' });
 Categoria.belongsTo(Tienda, { foreignKey: 'tienda_id', as: 'tienda' });
 
-// Tienda <-> Producto
 Tienda.hasMany(Producto, { foreignKey: 'tienda_id', as: 'productos' });
 Producto.belongsTo(Tienda, { foreignKey: 'tienda_id', as: 'tienda' });
 
-// Categoria <-> Producto
 Categoria.hasMany(Producto, { foreignKey: 'categoria_id', as: 'productos' });
 Producto.belongsTo(Categoria, { foreignKey: 'categoria_id', as: 'categoria' });
 
-// Cliente <-> Tienda (Many-to-Many a través de ClienteTienda)
+// --- CLIENTE Y TIENDA (Many-to-Many a través de ClienteTienda) ---
 Cliente.belongsToMany(Tienda, { through: ClienteTienda, foreignKey: 'cliente_id', as: 'tiendas' });
 Tienda.belongsToMany(Cliente, { through: ClienteTienda, foreignKey: 'tienda_id', as: 'clientes' });
 ClienteTienda.belongsTo(Cliente, { foreignKey: 'cliente_id', as: 'cliente' });
 ClienteTienda.belongsTo(Tienda, { foreignKey: 'tienda_id', as: 'tienda' });
+Cliente.hasMany(ClienteTienda, { foreignKey: 'cliente_id', as: 'tiendasVinculadas' });
+Tienda.hasMany(ClienteTienda, { foreignKey: 'tienda_id', as: 'clientesVinculados' });
 
-// Tienda <-> Fiado
+// --- FIADO Y SUS RELACIONES CRÍTICAS (Blindadas para la App del Cliente) ---
+// 1. Fiado <-> Tienda
 Tienda.hasMany(Fiado, { foreignKey: 'tienda_id', as: 'fiados' });
 Fiado.belongsTo(Tienda, { foreignKey: 'tienda_id', as: 'tienda' });
 
-// Cliente <-> Fiado
+// 2. Fiado <-> Cliente
 Cliente.hasMany(Fiado, { foreignKey: 'cliente_id', as: 'fiados' });
 Fiado.belongsTo(Cliente, { foreignKey: 'cliente_id', as: 'cliente' });
 
-// Tendero <-> Fiado (Creador)
+// 3. Fiado <-> Tendero (Creador)
 Tendero.hasMany(Fiado, { foreignKey: 'tendero_id', as: 'fiadosCreados' });
 Fiado.belongsTo(Tendero, { foreignKey: 'tendero_id', as: 'tenderoCreador' });
 
-// Fiado <-> FiadoDetalle
+// 4. Fiado <-> FiadoDetalle (Alias 'detalles' coincide con el controller)
 Fiado.hasMany(FiadoDetalle, { foreignKey: 'fiado_id', as: 'detalles' });
 FiadoDetalle.belongsTo(Fiado, { foreignKey: 'fiado_id', as: 'fiado' });
 
-// FiadoDetalle <-> Producto
+// 5. FiadoDetalle <-> Producto (Alias 'producto' coincide con el controller)
+Producto.hasMany(FiadoDetalle, { foreignKey: 'producto_id', as: 'detallesEnProducto' }); // Alias único para evitar conflictos
 FiadoDetalle.belongsTo(Producto, { foreignKey: 'producto_id', as: 'producto' });
 
-// Fiado <-> Pago
+// 6. Fiado <-> Pago (Alias 'pagos' coincide con el controller)
 Fiado.hasMany(Pago, { foreignKey: 'fiado_id', as: 'pagos' });
 Pago.belongsTo(Fiado, { foreignKey: 'fiado_id', as: 'fiado' });
 
-// Tienda <-> Pago
+// --- RELACIONES ADICIONALES DE PAGO ---
 Tienda.hasMany(Pago, { foreignKey: 'tienda_id', as: 'pagos' });
 Pago.belongsTo(Tienda, { foreignKey: 'tienda_id', as: 'tienda' });
 
-// Cliente <-> Pago
 Cliente.hasMany(Pago, { foreignKey: 'cliente_id', as: 'pagos' });
 Pago.belongsTo(Cliente, { foreignKey: 'cliente_id', as: 'cliente' });
 
-// Tendero <-> Pago (Registrado por)
 Tendero.hasMany(Pago, { foreignKey: 'registrado_por', as: 'pagosRegistrados' });
 Pago.belongsTo(Tendero, { foreignKey: 'registrado_por', as: 'registrador' });
 
-// Tienda <-> Alerta
+// --- RELACIONES DE ALERTAS ---
 Tienda.hasMany(Alerta, { foreignKey: 'tienda_id', as: 'alertas' });
 Alerta.belongsTo(Tienda, { foreignKey: 'tienda_id', as: 'tienda' });
 
-// Cliente <-> Alerta
+Cliente.hasMany(Alerta, { foreignKey: 'cliente_id', as: 'alertas' });
 Alerta.belongsTo(Cliente, { foreignKey: 'cliente_id', as: 'cliente' });
 
-// Producto <-> Alerta
 Producto.hasMany(Alerta, { foreignKey: 'producto_id', as: 'alertas' });
 Alerta.belongsTo(Producto, { foreignKey: 'producto_id', as: 'producto' });
 
-// Tendero <-> Alerta (Destinatario)
 Tendero.hasMany(Alerta, { foreignKey: 'destinatario_id', as: 'alertasRecibidas', constraints: false });
 Alerta.belongsTo(Tendero, { foreignKey: 'destinatario_id', as: 'destinatarioTendero', constraints: false });
 
-// Cliente <-> ScoringHistorial
+// --- RELACIONES DE SCORING Y LOGS ---
 Cliente.hasMany(ScoringHistorial, { foreignKey: 'cliente_id', as: 'scoringHistorial' });
 ScoringHistorial.belongsTo(Cliente, { foreignKey: 'cliente_id', as: 'cliente' });
-
-// Tienda <-> ScoringHistorial
 ScoringHistorial.belongsTo(Tienda, { foreignKey: 'tienda_id', as: 'tienda' });
+Tienda.hasMany(ScoringHistorial, { foreignKey: 'tienda_id', as: 'scoringHistoriales' });
 
-// Tienda <-> LogSistema
 Tienda.hasMany(LogSistema, { foreignKey: 'tienda_id', as: 'logs' });
 LogSistema.belongsTo(Tienda, { foreignKey: 'tienda_id', as: 'tienda' });
-
-// Asociaciones recíprocas adicionales
-Producto.hasMany(FiadoDetalle, { foreignKey: 'producto_id', as: 'detalles' });
-Cliente.hasMany(Alerta, { foreignKey: 'cliente_id', as: 'alertas' });
-Cliente.hasMany(ClienteTienda, { foreignKey: 'cliente_id', as: 'tiendasVinculadas' });
-Tienda.hasMany(ClienteTienda, { foreignKey: 'tienda_id', as: 'clientesVinculados' });
-Tienda.hasMany(ScoringHistorial, { foreignKey: 'tienda_id', as: 'scoringHistoriales' });
 
 // 3. Exportar todo
 module.exports = {
