@@ -33,10 +33,30 @@ const registrarPago = async (req, res) => {
             return res.status(400).json({ error: `El monto excede el saldo pendiente (${saldoPendiente}).` });
         }
 
-        const pago = await Pago.create({
-            fiado_id, tienda_id: fiado.tienda_id, cliente_id: fiado.cliente_id, registrado_por: tenderoId,
-            monto, metodo_pago: metodo_pago || 'efectivo', referencia: referencia || null, notas: notas || null, fecha_pago: new Date()
-        }, { transaction: t });
+        // ✅ CORREGIDO: Detectar automáticamente el nombre de la columna
+        const datosPago = {
+            fiado_id,
+            tienda_id: fiado.tienda_id,
+            cliente_id: fiado.cliente_id,
+            registrado_por: tenderoId,
+            monto,
+            referencia: referencia || null,
+            notas: notas || null,
+            fecha_pago: new Date()
+        };
+
+        // Intentar con metodo_pago primero, si falla usar tipo_pago
+        const modeloPago = Pago.rawAttributes;
+        if (modeloPago.metodo_pago) {
+            datosPago.metodo_pago = metodo_pago || 'efectivo';
+        } else if (modeloPago.tipo_pago) {
+            datosPago.tipo_pago = metodo_pago || 'efectivo';
+        } else {
+            // Si no existe ninguna, usar metodo_pago por defecto
+            datosPago.metodo_pago = metodo_pago || 'efectivo';
+        }
+
+        const pago = await Pago.create(datosPago, { transaction: t });
 
         const nuevoMontoPagado = Number(fiado.monto_pagado) + monto;
         const nuevoEstado = nuevoMontoPagado >= Number(fiado.monto_total) ? 'pagado' : 'parcial';
@@ -54,22 +74,39 @@ const registrarPago = async (req, res) => {
 
         await t.commit();
 
+        // ✅ Respuesta adaptativa
+        const nombreColumnaMetodo = modeloPago.metodo_pago ? 'metodo_pago' : (modeloPago.tipo_pago ? 'tipo_pago' : 'metodo_pago');
+
         res.status(201).json({
             msg: 'Pago registrado exitosamente.',
-            pago: { id: pago.id, monto: pago.monto, metodo_pago: pago.metodo_pago, fecha_pago: pago.fecha_pago, referencia: pago.referencia, notas: pago.notas },
-            fiado_actualizado: { id: fiado.id, numero_fiado: fiado.numero_fiado, monto_total: fiado.monto_total, monto_pagado: nuevoMontoPagado, saldo_pendiente: Number(fiado.monto_total) - nuevoMontoPagado, estado: nuevoEstado }
+            pago: {
+                id: pago.id,
+                monto: pago.monto,
+                metodo_pago: pago[nombreColumnaMetodo] || metodo_pago || 'efectivo',
+                fecha_pago: pago.fecha_pago,
+                referencia: pago.referencia,
+                notas: pago.notas
+            },
+            fiado_actualizado: {
+                id: fiado.id,
+                numero_fiado: fiado.numero_fiado,
+                monto_total: fiado.monto_total,
+                monto_pagado: nuevoMontoPagado,
+                saldo_pendiente: Number(fiado.monto_total) - nuevoMontoPagado,
+                estado: nuevoEstado
+            }
         });
     } catch (error) {
         await t.rollback();
         console.error('Error al registrar pago:', error);
-        res.status(500).json({ error: 'Error interno al registrar el pago.' });
+        res.status(500).json({ error: 'Error interno al registrar el pago.', detalle: error.message });
     }
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 2. LISTAR PAGOS DE LA TIENDA
 // GET /api/pagos?tienda_id=xxx&fecha_inicio=YYYY-MM-DD&fecha_fin=YYYY-MM-DD
-// ═══════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
 const listarPagos = async (req, res) => {
     try {
         const tenderoId = req.usuario.id;
@@ -101,8 +138,17 @@ const listarPagos = async (req, res) => {
             limit: 100
         });
 
+        // ✅ Detectar nombre de columna
+        const modeloPago = Pago.rawAttributes;
+        const nombreColumnaMetodo = modeloPago.metodo_pago ? 'metodo_pago' : (modeloPago.tipo_pago ? 'tipo_pago' : 'metodo_pago');
+
         const pagosFormateados = pagos.map(pago => ({
-            id: pago.id, monto: pago.monto, metodo_pago: pago.metodo_pago, fecha_pago: pago.fecha_pago, referencia: pago.referencia, notas: pago.notas,
+            id: pago.id,
+            monto: pago.monto,
+            metodo_pago: pago[nombreColumnaMetodo] || 'efectivo',
+            fecha_pago: pago.fecha_pago,
+            referencia: pago.referencia,
+            notas: pago.notas,
             fiado: { id: pago.fiado.id, numero_fiado: pago.fiado.numero_fiado, monto_total: pago.fiado.monto_total, estado: pago.fiado.estado, cliente: pago.fiado.cliente },
             registrado_por: pago.registrador ? `${pago.registrador.nombres} ${pago.registrador.apellidos}` : 'Sistema'
         }));
@@ -112,11 +158,11 @@ const listarPagos = async (req, res) => {
         res.status(200).json({ msg: 'Pagos obtenidos exitosamente.', total_pagos: pagosFormateados.length, total_pagado: totalPagado, pagos: pagosFormateados });
     } catch (error) {
         console.error('Error al listar pagos:', error);
-        res.status(500).json({ error: 'Error interno al obtener los pagos.' });
+        res.status(500).json({ error: 'Error interno al obtener los pagos.', detalle: error.message });
     }
 };
 
-// ═══════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
 // 3. OBTENER DETALLE DE UN PAGO
 // GET /api/pagos/:id
 // ═══════════════════════════════════════════════════════════════════════════
@@ -135,21 +181,39 @@ const obtenerPago = async (req, res) => {
         const tienda = await Tienda.findOne({ where: { id: pago.fiado.tienda_id, tendero_id: tenderoId } });
         if (!tienda) return res.status(403).json({ error: 'No tienes permisos para ver este pago.' });
 
+        // ✅ Detectar nombre de columna
+        const modeloPago = Pago.rawAttributes;
+        const nombreColumnaMetodo = modeloPago.metodo_pago ? 'metodo_pago' : (modeloPago.tipo_pago ? 'tipo_pago' : 'metodo_pago');
+
         res.status(200).json({
             msg: 'Pago obtenido exitosamente.',
             pago: {
-                id: pago.id, monto: pago.monto, metodo_pago: pago.metodo_pago, fecha_pago: pago.fecha_pago, referencia: pago.referencia, notas: pago.notas,
-                fiado: { id: pago.fiado.id, numero_fiado: pago.fiado.numero_fiado, monto_total: pago.fiado.monto_total, monto_pagado: pago.fiado.monto_pagado, saldo_pendiente: pago.fiado.monto_total - pago.fiado.monto_pagado, estado: pago.fiado.estado, fecha_fiado: pago.fiado.fecha_fiado, cliente: pago.fiado.cliente, tienda: pago.fiado.tienda },
+                id: pago.id,
+                monto: pago.monto,
+                metodo_pago: pago[nombreColumnaMetodo] || 'efectivo',
+                fecha_pago: pago.fecha_pago,
+                referencia: pago.referencia,
+                notas: pago.notas,
+                fiado: {
+                    id: pago.fiado.id,
+                    numero_fiado: pago.fiado.numero_fiado,
+                    monto_total: pago.fiado.monto_total,
+                    monto_pagado: pago.fiado.monto_pagado,
+                    saldo_pendiente: pago.fiado.monto_total - pago.fiado.monto_pagado,
+                    estado: pago.fiado.estado,
+                    fecha_fiado: pago.fiado.fecha_fiado,
+                    cliente: pago.fiado.cliente,
+                    tienda: pago.fiado.tienda
+                },
                 registrado_por: pago.registrador ? `${pago.registrador.nombres} ${pago.registrador.apellidos}` : 'Sistema'
             }
         });
     } catch (error) {
         console.error('Error al obtener pago:', error);
-        res.status(500).json({ error: 'Error interno al obtener el pago.' });
+        res.status(500).json({ error: 'Error interno al obtener el pago.', detalle: error.message });
     }
 };
 
-// ✅ EXPORTACIÓN CORREGIDA
 module.exports = {
     registrarPago,
     listarPagos,
