@@ -3,84 +3,89 @@ const router = express.Router();
 const tenderoController = require('../controllers/tenderoController');
 const { verificarToken, verificarRol } = require('../middleware/authMiddleware');
 
-// Rutas de Tendero
+// ═══════════════════════════════════════════════════════════════════════════
+// RUTAS DE TENDERO
+// ═══════════════════════════════════════════════════════════════════════════
 
-
-// 0. Rutas Administrativas (Admin)
-// GET /api/tenderos -> Listado de todos los tenderos
+// 0. OBTENER TODOS LOS TENDEROS (PANEL ADMIN)
+// GET /api/tenderos
 router.get(
     '/',
     verificarToken,
-    verificarRol(['admin']),
+    verificarRol(['admin']), // Solo admin puede ver todos los tenderos
     tenderoController.getTenderosAdmin
 );
 
-// POST /api/tenderos -> Crear un tendero desde panel admin
+// 0.1 CREAR TENDERO (ADMIN O REGISTRO MÓVIL)
+// POST /api/tenderos
+// ✅ MODIFICADO: Ahora permite admin y tendero (para registro desde app móvil)
 router.post(
     '/',
     verificarToken,
-    verificarRol(['admin']),
+    verificarRol(['admin', 'tendero']), // ✅ CAMBIO: Permite ambos roles
     tenderoController.crearTenderoAdmin
 );
 
-// PUT /api/tenderos/toggle-activo/:id -> Activar o desactivar tendero
+// 0.2 ACTUALIZAR TENDERO POR ID (PANEL ADMIN)
+// PUT /api/tenderos/:id
+router.put(
+    '/:id',
+    verificarToken,
+    verificarRol(['admin']), // Solo admin puede actualizar otros tenderos
+    tenderoController.actualizarTenderoAdmin
+);
+
+// 0.3 ALTERNAR ESTADO ACTIVO TENDERO (PANEL ADMIN)
+// PUT /api/tenderos/toggle-activo/:id
 router.put(
     '/toggle-activo/:id',
     verificarToken,
-    verificarRol(['admin']),
+    verificarRol(['admin']), // Solo admin puede activar/desactivar
     tenderoController.toggleActivoTenderoAdmin
 );
 
-// DELETE /api/tenderos/:id -> Eliminar tendero (Admin)
+// 0.4 ELIMINAR TENDERO (PANEL ADMIN)
+// DELETE /api/tenderos/:id
 router.delete(
     '/:id',
     verificarToken,
-    verificarRol(['admin']),
+    verificarRol(['admin']), // Solo admin puede eliminar tenderos
     tenderoController.eliminarTenderoAdmin
 );
 
-// 1. Obtener perfil del tendero (Tendero)
+// 1. OBTENER PERFIL DEL TENDERO (TENDERO LOGUEADO)
 // GET /api/tenderos/perfil
 router.get(
     '/perfil',
     verificarToken,
-    verificarRol(['tendero']),
+    verificarRol(['tendero']), // Solo tendero puede ver su perfil
     tenderoController.getPerfil
 );
 
-// 2. Actualizar perfil del tendero (Tendero)
+// 2. ACTUALIZAR PERFIL DEL TENDERO (TENDERO LOGUEADO)
 // PUT /api/tenderos/perfil
 router.put(
     '/perfil',
     verificarToken,
-    verificarRol(['tendero']),
+    verificarRol(['tendero']), // Solo tendero puede actualizar su perfil
     tenderoController.actualizarPerfil
 );
 
-// 3. Cambiar contraseña (Tendero)
+// 3. CAMBIAR CONTRASEÑA (TENDERO LOGUEADO)
 // PUT /api/tenderos/cambiar-password
 router.put(
     '/cambiar-password',
     verificarToken,
-    verificarRol(['tendero']),
+    verificarRol(['tendero']), // Solo tendero puede cambiar su password
     tenderoController.cambiarPassword
 );
 
-// 4. Actualizar tendero por id (Admin)
-// PUT /api/tenderos/:id -> Actualizar tendero por id
-router.put(
-    '/:id',
-    verificarToken,
-    verificarRol(['admin']),
-    tenderoController.actualizarTenderoAdmin
-);
-
-// 4. Obtener estadísticas (Tendero)
+// 4. OBTENER ESTADÍSTICAS (TENDERO LOGUEADO)
 // GET /api/tenderos/estadisticas
 router.get(
     '/estadisticas',
     verificarToken,
-    verificarRol(['tendero']),
+    verificarRol(['tendero']), // Solo tendero puede ver sus estadísticas
     tenderoController.getEstadisticas
 );
 
