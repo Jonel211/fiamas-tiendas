@@ -76,25 +76,13 @@ exports.listarCategorias = async (req, res) => {
             return res.status(404).json({ error: 'Tienda no encontrada o no tienes permisos.' });
         }
 
-        // Obtener categorías activas de la tienda
+        // ✅ CONSULTA SIMPLIFICADA (sin COUNT ni GROUP BY que causan errores en PostgreSQL)
         const categorias = await Categoria.findAll({
             where: {
                 tienda_id: tiendaId,
                 activo: true
             },
-            order: [['nombre', 'ASC']],
-            // Opcional: Incluir conteo de productos (requiere atributos específicos)
-            include: [{
-                model: Producto,
-                as: 'productos',
-                attributes: [],
-                required: false
-            }],
-            attributes: [
-                'id', 'nombre', 'descripcion', 'tienda_id', 'activo', 'creado_en',
-                [sequelize.fn('COUNT', sequelize.col('productos.id')), 'total_productos']
-            ],
-            group: ['Categoria.id']
+            order: [['nombre', 'ASC']]
         });
 
         res.status(200).json({
@@ -105,7 +93,10 @@ exports.listarCategorias = async (req, res) => {
 
     } catch (error) {
         console.error('Error al listar categorías:', error);
-        res.status(500).json({ error: 'Error interno al obtener las categorías.' });
+        res.status(500).json({
+            error: 'Error interno al obtener las categorías.',
+            detalle: error.message
+        });
     }
 };
 
