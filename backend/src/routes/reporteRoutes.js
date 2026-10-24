@@ -1,9 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const reporteController = require('../controllers/reporteController');
 const { verificarToken } = require('../middleware/authMiddleware');
+const reporteController = require('../controllers/reporteController');
 
-// GET /api/reportes/estadisticas - Estadísticas generales
-router.get('/estadisticas', verificarToken, reporteController.getEstadisticas);
+// ═════════════════════════════════════════════════════════════════════════
+// RUTAS DE REPORTES
+// ═════════════════════════════════════════════════════════════════════════
+
+// Asegúrate de que los nombres de las funciones (ej: obtenerReporteVentas) 
+// coincidan EXACTAMENTE con los que exportas en reporteController.js
+
+router.get('/ventas', verificarToken, reporteController.obtenerReporteVentas);
+router.get('/productos', verificarToken, reporteController.obtenerReporteProductos);
 
 module.exports = router;

@@ -1,74 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const productoController = require('../controllers/productoController');
-const { verificarToken, verificarRol, verificarPropiedadTienda } = require('../middleware/authMiddleware');
+const { verificarToken } = require('../middleware/authMiddleware'); // ✅ Ruta corregida
 
-// Rutas de Productos
+// ═════════════════════════════════════════════════════════════════════════
+// RUTAS DE PRODUCTOS
+// Todas requieren autenticación
+// ══════════════════════════════════════════════════════════════════════════
 
-// 1. Crear un producto
-// POST /api/productos
-router.post(
-    '/',
-    verificarToken,
-    verificarRol(['tendero', 'admin']),
-    verificarPropiedadTienda,
-    productoController.crearProducto
-);
+// Crear producto
+router.post('/', verificarToken, productoController.crearProducto);
 
-// 2. Obtener todos los productos de una tienda
-// GET /api/productos/tienda/:tienda_id
-router.get(
-    '/tienda/:tienda_id',
-    verificarToken,
-    verificarRol(['tendero', 'admin']),
-    verificarPropiedadTienda,
-    productoController.getProductosPorTienda
-);
+// Listar productos de una tienda específica
+router.get('/tienda/:tiendaId', verificarToken, productoController.listarProductosPorTienda);
 
-// 3. Obtener productos con stock bajo
-// GET /api/productos/stock-bajo/:tienda_id
-router.get(
-    '/stock-bajo/:tienda_id',
-    verificarToken,
-    verificarRol(['tendero', 'admin']),
-    verificarPropiedadTienda,
-    productoController.getProductosStockBajo
-);
+// Obtener un producto por ID
+router.get('/:id', verificarToken, productoController.obtenerProductoPorId);
 
-// 4. Buscar productos por nombre o código de barras
-// GET /api/productos/buscar?q=arroz&tienda_id=uuid
-router.get(
-    '/buscar',
-    verificarToken,
-    verificarRol(['tendero', 'admin', 'cliente']),
-    productoController.buscarProductos
-);
+// Actualizar producto
+router.put('/:id', verificarToken, productoController.actualizarProducto);
 
-// 5. Obtener un producto por ID
-// GET /api/productos/:id
-router.get(
-    '/:id',
-    verificarToken,
-    verificarRol(['tendero', 'admin', 'cliente']),
-    productoController.getProductoPorId
-);
-
-// 6. Actualizar un producto
-// PUT /api/productos/:id
-router.put(
-    '/:id',
-    verificarToken,
-    verificarRol(['tendero', 'admin']),
-    productoController.actualizarProducto
-);
-
-// 7. Eliminar un producto
-// DELETE /api/productos/:id
-router.delete(
-    '/:id',
-    verificarToken,
-    verificarRol(['tendero', 'admin']),
-    productoController.eliminarProducto
-);
+// Eliminar producto
+router.delete('/:id', verificarToken, productoController.eliminarProducto);
 
 module.exports = router;
