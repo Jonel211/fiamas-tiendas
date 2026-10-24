@@ -88,6 +88,9 @@ Alerta.belongsTo(Producto, { foreignKey: 'producto_id', as: 'producto' });
 Tendero.hasMany(Alerta, { foreignKey: 'destinatario_id', as: 'alertasRecibidas', constraints: false });
 Alerta.belongsTo(Tendero, { foreignKey: 'destinatario_id', as: 'destinatarioTendero', constraints: false });
 
+Tendero.hasMany(Alerta, { foreignKey: 'emisor_id', as: 'alertasEmitidas', constraints: false });
+Alerta.belongsTo(Tendero, { foreignKey: 'emisor_id', as: 'emisorTendero', constraints: false });
+
 // --- RELACIONES DE SCORING Y LOGS ---
 Cliente.hasMany(ScoringHistorial, { foreignKey: 'cliente_id', as: 'scoringHistorial' });
 ScoringHistorial.belongsTo(Cliente, { foreignKey: 'cliente_id', as: 'cliente' });
