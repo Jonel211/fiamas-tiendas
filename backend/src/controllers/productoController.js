@@ -1,37 +1,43 @@
 const { Producto, Tienda, Categoria } = require('../models');
+const cloudinary = require('../config/cloudinary'); // ✅ ESTA LÍNEA ES LA CLAVE
 const { Op } = require('sequelize');
 
 // ══════════════════════════════════════════════════════════════════════════
-// 1. CREAR PRODUCTO
-// POST /api/productos
+// 1. CREAR PRODUCTO CON IMAGEN
 // ══════════════════════════════════════════════════════════════════════════
 exports.crearProducto = async (req, res) => {
     try {
-        console.log(' [CREAR PRODUCTO] Body recibido:', JSON.stringify(req.body, null, 2));
-        console.log('🔑 [CREAR PRODUCTO] Usuario:', req.usuario.id, 'Rol:', req.usuario.rol);
-
         const usuarioId = req.usuario.id;
         const esAdmin = req.usuario.rol === 'admin';
-        const { nombre, descripcion, tienda_id, categoria_id, codigo_barras, tipo_venta, unidad_medida, precio_venta, activo, imagen_url } = req.body;
+        const { nombre, descripcion, tienda_id, categoria_id, codigo_barras, tipo_venta, unidad_medida, precio_venta, activo } = req.body;
 
         if (!nombre || !tienda_id || !categoria_id || precio_venta === undefined) {
             return res.status(400).json({ error: 'El nombre, tienda_id, categoria_id y precio_venta son obligatorios.' });
         }
 
-        console.log('🔍 [CREAR PRODUCTO] Buscando tienda:', tienda_id);
         const whereTienda = esAdmin ? { id: tienda_id, activo: true } : { id: tienda_id, tendero_id: usuarioId, activo: true };
         const tienda = await Tienda.findOne({ where: whereTienda });
 
         if (!tienda) {
-            console.log('❌ [CREAR PRODUCTO] Tienda no encontrada o sin permisos');
             return res.status(404).json({ error: 'No tienes permiso para acceder a los datos de esta tienda.' });
         }
-
-        console.log('✅ [CREAR PRODUCTO] Tienda válida:', tienda.nombre);
 
         const categoria = await Categoria.findByPk(categoria_id);
         if (!categoria || categoria.tienda_id !== tienda_id) {
             return res.status(400).json({ error: 'La categoría no existe o no pertenece a esta tienda.' });
+        }
+
+        // ✅ LÓGICA DE SUBIDA A CLOUDINARY
+        let imagen_url = null;
+        if (req.file) {
+            const b64 = Buffer.from(req.file.buffer).toString('base64');
+            const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+
+            const cldRes = await cloudinary.uploader.upload(dataURI, {
+                folder: 'fiamas_app/productos',
+                resource_type: 'image'
+            });
+            imagen_url = cldRes.secure_url;
         }
 
         const nuevoProducto = await Producto.create({
@@ -44,24 +50,21 @@ exports.crearProducto = async (req, res) => {
             unidad_medida: unidad_medida || 'unidad',
             precio_venta: parseFloat(precio_venta),
             activo: activo !== undefined ? Boolean(activo) : true,
-            imagen_url: imagen_url || null
+            imagen_url: imagen_url
         });
-
-        console.log('✅ [CREAR PRODUCTO] Producto creado:', nuevoProducto.id);
 
         res.status(201).json({
             msg: 'Producto creado exitosamente.',
             producto: nuevoProducto
         });
     } catch (error) {
-        console.error('❌ [CREAR PRODUCTO] Error:', error);
+        console.error('Error al crear producto:', error);
         res.status(500).json({ error: 'Error interno al crear el producto.', detalle: error.message });
     }
 };
 
 // ══════════════════════════════════════════════════════════════════════════
 // 2. LISTAR PRODUCTOS DE UNA TIENDA
-// GET /api/productos/tienda/:tiendaId
 // ══════════════════════════════════════════════════════════════════════════
 exports.listarProductosPorTienda = async (req, res) => {
     try {
@@ -99,7 +102,6 @@ exports.listarProductosPorTienda = async (req, res) => {
 
 // ══════════════════════════════════════════════════════════════════════════
 // 3. OBTENER PRODUCTO POR ID
-// GET /api/productos/:id
 // ══════════════════════════════════════════════════════════════════════════
 exports.obtenerProductoPorId = async (req, res) => {
     try {
@@ -134,15 +136,14 @@ exports.obtenerProductoPorId = async (req, res) => {
 };
 
 // ══════════════════════════════════════════════════════════════════════════
-// 4. ACTUALIZAR PRODUCTO
-// PUT /api/productos/:id
+// 4. ACTUALIZAR PRODUCTO CON IMAGEN
 // ══════════════════════════════════════════════════════════════════════════
 exports.actualizarProducto = async (req, res) => {
     try {
         const usuarioId = req.usuario.id;
         const esAdmin = req.usuario.rol === 'admin';
         const productoId = req.params.id;
-        const { nombre, descripcion, categoria_id, codigo_barras, tipo_venta, unidad_medida, precio_venta, activo, imagen_url } = req.body;
+        const { nombre, descripcion, categoria_id, codigo_barras, tipo_venta, unidad_medida, precio_venta, activo } = req.body;
 
         const producto = await Producto.findByPk(productoId);
         if (!producto) {
@@ -172,11 +173,21 @@ exports.actualizarProducto = async (req, res) => {
         if (unidad_medida !== undefined) datosActualizacion.unidad_medida = unidad_medida;
         if (precio_venta !== undefined) datosActualizacion.precio_venta = parseFloat(precio_venta);
         if (activo !== undefined) datosActualizacion.activo = Boolean(activo);
-        if (imagen_url !== undefined) datosActualizacion.imagen_url = imagen_url;
+
+        // ✅ LÓGICA DE ACTUALIZACIÓN DE IMAGEN
+        if (req.file) {
+            const b64 = Buffer.from(req.file.buffer).toString('base64');
+            const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+
+            const cldRes = await cloudinary.uploader.upload(dataURI, {
+                folder: 'fiamas_app/productos',
+                resource_type: 'image'
+            });
+            datosActualizacion.imagen_url = cldRes.secure_url;
+        }
 
         await producto.update(datosActualizacion);
 
-        // OBTENER EL PRODUCTO ACTUALIZADO CON LA CATEGORÍA INCLUIDA
         const productoActualizado = await Producto.findByPk(productoId, {
             include: [{
                 model: Categoria,
@@ -194,10 +205,10 @@ exports.actualizarProducto = async (req, res) => {
         res.status(500).json({ error: 'Error interno al actualizar el producto.' });
     }
 };
+
 // ══════════════════════════════════════════════════════════════════════════
-// 5. ELIMINAR PRODUCTO (Hard Delete)
-// DELETE /api/productos/:id
-// ═════════════════════════════════════════════════════════════════════════
+// 5. ELIMINAR PRODUCTO
+// ══════════════════════════════════════════════════════════════════════════
 exports.eliminarProducto = async (req, res) => {
     try {
         const usuarioId = req.usuario.id;

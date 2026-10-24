@@ -1,15 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const productoController = require('../controllers/productoController');
-const { verificarToken } = require('../middleware/authMiddleware'); // ✅ Ruta corregida
+const { verificarToken } = require('../middleware/authMiddleware');
+const upload = require('../middleware/upload');
 
-// ═════════════════════════════════════════════════════════════════════════
-// RUTAS DE PRODUCTOS
-// Todas requieren autenticación
-// ══════════════════════════════════════════════════════════════════════════
-
-// Crear producto
-router.post('/', verificarToken, productoController.crearProducto);
+// Crear producto (ahora acepta un archivo llamado 'imagen')
+router.post('/', verificarToken, upload.single('imagen'), productoController.crearProducto);
 
 // Listar productos de una tienda específica
 router.get('/tienda/:tiendaId', verificarToken, productoController.listarProductosPorTienda);
@@ -17,8 +13,8 @@ router.get('/tienda/:tiendaId', verificarToken, productoController.listarProduct
 // Obtener un producto por ID
 router.get('/:id', verificarToken, productoController.obtenerProductoPorId);
 
-// Actualizar producto
-router.put('/:id', verificarToken, productoController.actualizarProducto);
+// Actualizar producto (también acepta archivo 'imagen')
+router.put('/:id', verificarToken, upload.single('imagen'), productoController.actualizarProducto);
 
 // Eliminar producto
 router.delete('/:id', verificarToken, productoController.eliminarProducto);
