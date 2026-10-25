@@ -170,6 +170,15 @@ exports.crearAviso = async (req, res) => {
 
         const isUuid = typeof adminId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(adminId);
 
+        let totalTenderos = 1;
+        if (esParaTodos) {
+            try {
+                totalTenderos = await Tendero.count({ where: { activo: true } });
+            } catch (_) {
+                totalTenderos = 1;
+            }
+        }
+
         const aviso = await Alerta.create({
             emisor_tipo: 'admin',
             emisor_id: isUuid ? adminId : null,
@@ -180,7 +189,9 @@ exports.crearAviso = async (req, res) => {
             titulo: titulo.trim(),
             mensaje: mensaje.trim(),
             canal: canalesValidos.join(','),
-            estado: 'pendiente'
+            estado: 'pendiente',
+            leida_por: [],
+            fecha_creacion: new Date()
         });
 
         res.status(201).json({
@@ -194,25 +205,25 @@ exports.crearAviso = async (req, res) => {
                 destinatario: {
                     tipo: esParaTodos ? 'todos' : 'tendero',
                     id: esParaTodos ? null : tendero_id,
-                    label: esParaTodos ? 'Todos los tenderos' : `${destinatarioTendero.nombres} ${destinatarioTendero.apellidos}`,
+                    label: esParaTodos ? 'Todos los tenderos' : (destinatarioTendero ? `${destinatarioTendero.nombres} ${destinatarioTendero.apellidos}`.trim() : 'Tendero'),
                     dni: destinatarioTendero?.dni || null,
                     telefono: destinatarioTendero?.telefono || null
                 },
-                date: new Date(aviso.fecha_creacion).toLocaleString('es-PE', {
+                date: new Date(aviso.fecha_creacion || Date.now()).toLocaleString('es-PE', {
                     year: 'numeric', month: '2-digit', day: '2-digit',
                     hour: '2-digit', minute: '2-digit'
                 }),
                 estado: aviso.estado,
                 lecturas: {
                     leidos: 0,
-                    total: esParaTodos ? await Tendero.count({ where: { activo: true } }) : 1,
+                    total: totalTenderos,
                     tenderos: []
                 }
             }
         });
     } catch (error) {
         console.error('Error al crear aviso:', error);
-        res.status(500).json({ error: 'Error interno al crear el aviso.' });
+        res.status(500).json({ error: error.message || 'Error interno al crear el aviso.' });
     }
 };
 

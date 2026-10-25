@@ -223,6 +223,11 @@ exports.eliminarTiendaAdmin = async (req, res) => {
             return res.status(404).json({ error: 'Tienda no encontrada.' });
         }
 
+        if (req.usuario && req.usuario.rol === 'tendero' && tienda.tendero_id !== req.usuario.id) {
+            await t.rollback();
+            return res.status(403).json({ error: 'No tienes permiso para eliminar esta tienda.' });
+        }
+
         const fiados = await Fiado.findAll({ where: { tienda_id: id }, attributes: ['id'], transaction: t });
         const fiadosIds = fiados.map(f => f.id);
 
