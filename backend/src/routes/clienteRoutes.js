@@ -18,6 +18,15 @@ router.get(
     clienteController.buscarCliente
 );
 
+// CLIENTES RECIENTES
+// GET /api/clientes/recientes?tienda_id=xxx&limit=4
+router.get(
+    '/recientes',
+    verificarToken,
+    verificarRol(['admin', 'tendero']),
+    clienteController.clientesRecientes
+);
+
 // 2. LISTAR CLIENTES DE UNA TIENDA
 // GET /api/clientes?tienda_id=xxx
 router.get(
