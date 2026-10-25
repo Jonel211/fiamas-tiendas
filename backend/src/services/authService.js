@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { Op } = require('sequelize');
 const { Administrador, Tendero, Cliente, Tienda, sequelize } = require('../models');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fiamas_default_secret_jwt_key_2026';
@@ -37,22 +38,35 @@ const login = async ({ identificador, password, rolRequerido }) => {
         }
     }
 
-    // B. Si no se encontró y se pidió tendero o búsqueda en cascada por teléfono
+    // B. Si no se encontró y se pidió tendero o búsqueda en cascada por teléfono o DNI
+    let tenderoEncontrado = null;
     if (!usuario && (rolRequerido === 'tendero' || !rolRequerido)) {
-        const tendero = await Tendero.findOne({ where: { telefono: identificador, activo: true } });
-        if (tendero && await tendero.validarPassword(password)) {
-            usuario = tendero;
-            rol = 'tendero';
+        tenderoEncontrado = await Tendero.findOne({
+            where: {
+                [Op.or]: [
+                    { telefono: identificador },
+                    { dni: identificador }
+                ],
+                activo: true
+            }
+        });
+        if (tenderoEncontrado) {
+            if (await tenderoEncontrado.validarPassword(password)) {
+                usuario = tenderoEncontrado;
+                rol = 'tendero';
 
-            const tienda = await Tienda.findOne({
-                where: { tendero_id: tendero.id, activo: true }
-            });
-            tiendaId = tienda ? tienda.id : null;
+                const tienda = await Tienda.findOne({
+                    where: { tendero_id: tenderoEncontrado.id, activo: true }
+                });
+                tiendaId = tienda ? tienda.id : null;
+            }
         }
     }
 
     // C. Si no se encontró y se pidió cliente o búsqueda en cascada por teléfono
-    if (!usuario && (rolRequerido === 'cliente' || !rolRequerido)) {
+    // NOTA: Si ya se encontró un tendero con este teléfono/DNI pero la contraseña no coincidió,
+    // NO debemos permitir el acceso como cliente (evita que una contraseña antigua o secundaria permita acceso)
+    if (!usuario && !tenderoEncontrado && (rolRequerido === 'cliente' || !rolRequerido)) {
         const cliente = await Cliente.findOne({ where: { telefono: identificador, activo: true } });
         if (cliente) {
             if (!cliente.password_hash) {

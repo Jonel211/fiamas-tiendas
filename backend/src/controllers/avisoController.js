@@ -1,4 +1,4 @@
-const { Alerta, Tendero, Administrador } = require('../models');
+const { Alerta, Tendero, Administrador, Tienda, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 // Canales válidos estrictamente permitidos

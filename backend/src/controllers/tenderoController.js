@@ -1,4 +1,4 @@
-const { Tendero, Tienda, Fiado, FiadoDetalle, Pago, ScoringHistorial, LogSistema, ClienteTienda, Producto, Categoria, Alerta, sequelize } = require('../models');
+const { Tendero, Tienda, Cliente, Fiado, FiadoDetalle, Pago, ScoringHistorial, LogSistema, ClienteTienda, Producto, Categoria, Alerta, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const crypto = require('crypto');
 
@@ -331,6 +331,19 @@ exports.cambiarPassword = async (req, res) => {
             password_hash: password_nuevo,
             actualizado_en: new Date()
         });
+
+        // Sincronizar contraseña con cuenta cliente vinculada al mismo teléfono (si existe)
+        if (tendero.telefono) {
+            try {
+                const clienteVinculado = await Cliente.findOne({ where: { telefono: tendero.telefono, activo: true } });
+                if (clienteVinculado) {
+                    await clienteVinculado.update({
+                        password_hash: password_nuevo,
+                        actualizado_en: new Date()
+                    });
+                }
+            } catch (_) {}
+        }
 
         res.status(200).json({ msg: 'Contraseña actualizada exitosamente.' });
     } catch (error) {
