@@ -35,6 +35,9 @@ const startServer = async () => {
         // 2. Sincronizar modelos
         try {
             await sequelize.query('ALTER TABLE alertas ADD COLUMN IF NOT EXISTS leida_por UUID[] DEFAULT \'{}\';');
+            await sequelize.query('ALTER TABLE alertas ALTER COLUMN tienda_id DROP NOT NULL;');
+            await sequelize.query('ALTER TABLE alertas ALTER COLUMN cliente_id DROP NOT NULL;');
+            await sequelize.query('ALTER TABLE alertas ALTER COLUMN producto_id DROP NOT NULL;');
         } catch (e) {
             // Ignorar si no aplica o ya existe
         }

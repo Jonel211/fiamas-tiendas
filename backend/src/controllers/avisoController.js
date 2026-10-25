@@ -155,17 +155,36 @@ exports.crearAviso = async (req, res) => {
             return res.status(400).json({ error: 'Debes seleccionar al menos un canal válido (WhatsApp, SMS o Aplicación).' });
         }
 
-        // Determinar destinatario
+        // Determinar destinatario y tienda
         const esParaTodos = !tendero_id || tendero_id === 'todos';
         let destinatarioTendero = null;
+        let tiendaId = null;
 
         if (!esParaTodos) {
             destinatarioTendero = await Tendero.findByPk(tendero_id, {
-                attributes: ['id', 'nombres', 'apellidos', 'dni', 'telefono']
+                attributes: ['id', 'nombres', 'apellidos', 'dni', 'telefono'],
+                include: [{ model: Tienda, as: 'tiendas', attributes: ['id'], limit: 1 }]
             });
             if (!destinatarioTendero) {
                 return res.status(404).json({ error: 'El tendero seleccionado no existe.' });
             }
+            if (destinatarioTendero.tiendas && destinatarioTendero.tiendas.length > 0) {
+                tiendaId = destinatarioTendero.tiendas[0].id;
+            } else {
+                const tFound = await Tienda.findOne({ where: { tendero_id }, attributes: ['id'] });
+                if (tFound) tiendaId = tFound.id;
+            }
+        }
+
+        // Intentar remover el constraint NOT NULL si persiste en BD
+        try {
+            await sequelize.query('ALTER TABLE alertas ALTER COLUMN tienda_id DROP NOT NULL;');
+        } catch (_) {}
+
+        // Fallback por si la base de datos exige NOT NULL en tienda_id
+        if (!tiendaId) {
+            const anyTienda = await Tienda.findOne({ attributes: ['id'] });
+            if (anyTienda) tiendaId = anyTienda.id;
         }
 
         const isUuid = typeof adminId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(adminId);
@@ -184,6 +203,7 @@ exports.crearAviso = async (req, res) => {
             emisor_id: isUuid ? adminId : null,
             destinatario_tipo: esParaTodos ? 'todos' : 'tendero',
             destinatario_id: esParaTodos ? null : tendero_id,
+            tienda_id: tiendaId,
             tipo_alerta: 'aviso_admin',
             prioridad,
             titulo: titulo.trim(),
