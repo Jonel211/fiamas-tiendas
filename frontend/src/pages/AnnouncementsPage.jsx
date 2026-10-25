@@ -424,7 +424,11 @@ const AnnouncementsPage = () => {
     try {
       setLoading(true);
       const data = await getAvisos({ buscar, prioridad });
-      setAvisos(data.avisos || []);
+      // Filtrar para mostrar únicamente avisos emitidos por el Administrador (no los mensajes de soporte de los tenderos)
+      const listaAvisos = (data.avisos || []).filter(
+        (a) => a.emisor_tipo !== 'tendero' && a.tipo_alerta !== 'ayuda_soporte'
+      );
+      setAvisos(listaAvisos);
     } catch (err) {
       console.error(err);
       toast.error("Error al cargar los avisos");
@@ -592,11 +596,18 @@ const AnnouncementsPage = () => {
                         >
                           {item.priority}
                         </span>
-                        {/* Destinatario Badge */}
-                        <span className="text-xs font-medium px-2 py-0.5 rounded bg-teal-50 dark:bg-teal-900/30 text-[#1D9492] flex items-center gap-1">
-                          <User className="w-3 h-3" />
-                          {item.destinatario?.label || "Todos los tenderos"}
-                        </span>
+                        {item.tipo_alerta === 'ayuda_soporte' || item.emisor_tipo === 'tendero' ? (
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 flex items-center gap-1">
+                            <MessageCircle className="w-3 h-3" />
+                            {item.emisor?.label || "Ayuda de Tendero"}
+                            {item.emisor?.tendero?.telefono ? ` (${item.emisor.tendero.telefono})` : ""}
+                          </span>
+                        ) : (
+                          <span className="text-xs font-medium px-2 py-0.5 rounded bg-teal-50 dark:bg-teal-900/30 text-[#1D9492] flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            {item.destinatario?.label || "Todos los tenderos"}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <div className="flex items-center gap-1 text-xs text-gray-400">
@@ -612,7 +623,7 @@ const AnnouncementsPage = () => {
                         </button>
                       </div>
                     </div>
-                    <p className="text-gray-700 dark:text-gray-300 text-sm mt-1">
+                    <p className="text-gray-700 dark:text-gray-300 text-sm mt-1 whitespace-pre-line">
                       {item.message}
                     </p>
                     <div className="flex items-center gap-2 mt-2.5 flex-wrap">
@@ -635,15 +646,7 @@ const AnnouncementsPage = () => {
                           </span>
                         );
                       })}
-                      <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                        <span className="text-xs text-gray-400">
-                          Canales de difusión:
-                        </span>
-                        {channels.filter(Boolean).map((ch) => {
-                          /* ...igual que antes... */
-                        })}
-                        <ReadStatus lecturas={item.lecturas} />
-                      </div>
+                      <ReadStatus lecturas={item.lecturas} />
                     </div>
                   </div>
                 </div>

@@ -13,6 +13,7 @@ import iconTenderos from '@/assets/icons/sidebar/tenderos.png';
 import iconBackups from '@/assets/icons/sidebar/backups.png';
 import iconReportes from '@/assets/icons/sidebar/reportes.png';
 import iconAvisos from '@/assets/icons/sidebar/avisos.png';
+import iconSupport from '@/assets/icons/sidebar/support.png';
 import iconConfig from '@/assets/icons/sidebar/configuracion.png';
 
 const NAV_ITEMS = [
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { to: '/panel/backups', label: 'Backups', icon: iconBackups },
   { to: '/panel/reportes', label: 'Reportes', icon: iconReportes },
   { to: '/panel/avisos', label: 'Avisos', icon: iconAvisos },
+  { to: '/panel/soporte', label: 'Soporte', icon: iconSupport },
   { to: '/panel/configuracion', label: 'Configuración', icon: iconConfig },
 ];
 

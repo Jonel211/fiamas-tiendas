@@ -1,4 +1,4 @@
-const { Alerta, Tendero, Administrador } = require('../models');
+const { Alerta, Tendero, Administrador, Tienda, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 // Canales válidos estrictamente permitidos
@@ -11,8 +11,10 @@ exports.getAvisos = async (req, res) => {
         const offset = (parseInt(page) - 1) * parseInt(limit);
 
         const where = {
-            emisor_tipo: 'admin',
-            tipo_alerta: 'aviso_admin'
+            [Op.or]: [
+                { emisor_tipo: 'admin', tipo_alerta: 'aviso_admin' },
+                { emisor_tipo: 'tendero', tipo_alerta: 'ayuda_soporte' }
+            ]
         };
 
         if (prioridad && prioridad !== 'todos') {
@@ -28,12 +30,20 @@ exports.getAvisos = async (req, res) => {
 
         const { count, rows } = await Alerta.findAndCountAll({
             where,
-            include: [{
-                model: Tendero,
-                as: 'destinatarioTendero',
-                attributes: ['id', 'nombres', 'apellidos', 'dni', 'telefono'],
-                required: false
-            }],
+            include: [
+                {
+                    model: Tendero,
+                    as: 'destinatarioTendero',
+                    attributes: ['id', 'nombres', 'apellidos', 'dni', 'telefono'],
+                    required: false
+                },
+                {
+                    model: Tendero,
+                    as: 'emisorTendero',
+                    attributes: ['id', 'nombres', 'apellidos', 'dni', 'telefono'],
+                    required: false
+                }
+            ],
             order: [['fecha_creacion', 'DESC']],
             limit: parseInt(limit),
             offset
@@ -50,11 +60,18 @@ exports.getAvisos = async (req, res) => {
             // Filtrar únicamente los canales permitidos
             const channels = rawChannels.filter(c => CANALES_PERMITIDOS.includes(c));
 
-            const destinatarioLabel = a.destinatario_tipo === 'todos' || !a.destinatario_id
-                ? 'Todos los tenderos'
-                : (a.destinatarioTendero
+            let destinatarioLabel;
+            if (a.emisor_tipo === 'tendero') {
+                destinatarioLabel = a.emisorTendero
+                    ? `De: ${a.emisorTendero.nombres} ${a.emisorTendero.apellidos}`
+                    : 'De: Tendero (Soporte)';
+            } else if (a.destinatario_tipo === 'todos' || !a.destinatario_id) {
+                destinatarioLabel = 'Todos los tenderos';
+            } else {
+                destinatarioLabel = a.destinatarioTendero
                     ? `${a.destinatarioTendero.nombres} ${a.destinatarioTendero.apellidos}`
-                    : 'Tendero específico');
+                    : 'Tendero específico';
+            }
 
             // Lecturas: difusión (leida_por) o aviso dirigido (estado)
             let lecturas;
@@ -80,13 +97,15 @@ exports.getAvisos = async (req, res) => {
                 titulo: a.titulo,
                 message: a.mensaje,
                 priority: a.prioridad,
+                tipo_alerta: a.tipo_alerta,
+                emisor_tipo: a.emisor_tipo,
                 channels: channels.length > 0 ? channels : ['aplicacion'],
                 destinatario: {
-                    tipo: a.destinatario_tipo || 'todos',
+                    tipo: a.destinatario_tipo || (a.emisor_tipo === 'tendero' ? 'admin' : 'todos'),
                     id: a.destinatario_id,
                     label: destinatarioLabel,
-                    dni: a.destinatarioTendero?.dni || null,
-                    telefono: a.destinatarioTendero?.telefono || null
+                    dni: a.emisorTendero?.dni || a.destinatarioTendero?.dni || null,
+                    telefono: a.emisorTendero?.telefono || a.destinatarioTendero?.telefono || null
                 },
                 date: new Date(a.fecha_creacion).toLocaleString('es-PE', {
                     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -136,32 +155,63 @@ exports.crearAviso = async (req, res) => {
             return res.status(400).json({ error: 'Debes seleccionar al menos un canal válido (WhatsApp, SMS o Aplicación).' });
         }
 
-        // Determinar destinatario
+        // Determinar destinatario y tienda
         const esParaTodos = !tendero_id || tendero_id === 'todos';
         let destinatarioTendero = null;
+        let tiendaId = null;
 
         if (!esParaTodos) {
             destinatarioTendero = await Tendero.findByPk(tendero_id, {
-                attributes: ['id', 'nombres', 'apellidos', 'dni', 'telefono']
+                attributes: ['id', 'nombres', 'apellidos', 'dni', 'telefono'],
+                include: [{ model: Tienda, as: 'tiendas', attributes: ['id'], limit: 1 }]
             });
             if (!destinatarioTendero) {
                 return res.status(404).json({ error: 'El tendero seleccionado no existe.' });
             }
+            if (destinatarioTendero.tiendas && destinatarioTendero.tiendas.length > 0) {
+                tiendaId = destinatarioTendero.tiendas[0].id;
+            } else {
+                const tFound = await Tienda.findOne({ where: { tendero_id }, attributes: ['id'] });
+                if (tFound) tiendaId = tFound.id;
+            }
+        }
+
+        // Intentar remover el constraint NOT NULL si persiste en BD
+        try {
+            await sequelize.query('ALTER TABLE alertas ALTER COLUMN tienda_id DROP NOT NULL;');
+        } catch (_) {}
+
+        // Fallback por si la base de datos exige NOT NULL en tienda_id
+        if (!tiendaId) {
+            const anyTienda = await Tienda.findOne({ attributes: ['id'] });
+            if (anyTienda) tiendaId = anyTienda.id;
         }
 
         const isUuid = typeof adminId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(adminId);
+
+        let totalTenderos = 1;
+        if (esParaTodos) {
+            try {
+                totalTenderos = await Tendero.count({ where: { activo: true } });
+            } catch (_) {
+                totalTenderos = 1;
+            }
+        }
 
         const aviso = await Alerta.create({
             emisor_tipo: 'admin',
             emisor_id: isUuid ? adminId : null,
             destinatario_tipo: esParaTodos ? 'todos' : 'tendero',
             destinatario_id: esParaTodos ? null : tendero_id,
+            tienda_id: tiendaId,
             tipo_alerta: 'aviso_admin',
             prioridad,
             titulo: titulo.trim(),
             mensaje: mensaje.trim(),
             canal: canalesValidos.join(','),
-            estado: 'pendiente'
+            estado: 'pendiente',
+            leida_por: [],
+            fecha_creacion: new Date()
         });
 
         res.status(201).json({
@@ -175,25 +225,25 @@ exports.crearAviso = async (req, res) => {
                 destinatario: {
                     tipo: esParaTodos ? 'todos' : 'tendero',
                     id: esParaTodos ? null : tendero_id,
-                    label: esParaTodos ? 'Todos los tenderos' : `${destinatarioTendero.nombres} ${destinatarioTendero.apellidos}`,
+                    label: esParaTodos ? 'Todos los tenderos' : (destinatarioTendero ? `${destinatarioTendero.nombres} ${destinatarioTendero.apellidos}`.trim() : 'Tendero'),
                     dni: destinatarioTendero?.dni || null,
                     telefono: destinatarioTendero?.telefono || null
                 },
-                date: new Date(aviso.fecha_creacion).toLocaleString('es-PE', {
+                date: new Date(aviso.fecha_creacion || Date.now()).toLocaleString('es-PE', {
                     year: 'numeric', month: '2-digit', day: '2-digit',
                     hour: '2-digit', minute: '2-digit'
                 }),
                 estado: aviso.estado,
                 lecturas: {
                     leidos: 0,
-                    total: esParaTodos ? await Tendero.count({ where: { activo: true } }) : 1,
+                    total: totalTenderos,
                     tenderos: []
                 }
             }
         });
     } catch (error) {
         console.error('Error al crear aviso:', error);
-        res.status(500).json({ error: 'Error interno al crear el aviso.' });
+        res.status(500).json({ error: error.message || 'Error interno al crear el aviso.' });
     }
 };
 
@@ -209,5 +259,52 @@ exports.eliminarAviso = async (req, res) => {
     } catch (error) {
         console.error('Error al eliminar aviso:', error);
         res.status(500).json({ error: 'Error interno al eliminar el aviso.' });
+    }
+};
+
+// 4. CREAR MENSAJE DE AYUDA / SOPORTE DEL TENDERO (APP FLUTTER)
+exports.crearAyudaTendero = async (req, res) => {
+    try {
+        const tenderoId = req.usuario?.id;
+        const { asunto, mensaje, prioridad = 'media' } = req.body;
+
+        if (!asunto || !asunto.trim()) {
+            return res.status(400).json({ error: 'El asunto es obligatorio.' });
+        }
+        if (!mensaje || !mensaje.trim()) {
+            return res.status(400).json({ error: 'El mensaje es obligatorio.' });
+        }
+
+        const tendero = await Tendero.findByPk(tenderoId, {
+            attributes: ['id', 'nombres', 'apellidos', 'telefono']
+        });
+        if (!tendero) {
+            return res.status(404).json({ error: 'Tendero no encontrado.' });
+        }
+
+        const prioridadValida = ['baja', 'media', 'alta', 'urgente'].includes(prioridad) ? prioridad : 'media';
+
+        const aviso = await Alerta.create({
+            emisor_tipo: 'tendero',
+            emisor_id: tenderoId,
+            destinatario_tipo: 'admin',
+            destinatario_id: null,
+            tienda_id: req.usuario?.tienda_id || null,
+            tipo_alerta: 'ayuda_soporte',
+            prioridad: prioridadValida,
+            titulo: asunto.trim(),
+            mensaje: mensaje.trim(),
+            canal: 'aplicacion',
+            estado: 'pendiente',
+            fecha_creacion: new Date()
+        });
+
+        res.status(201).json({
+            msg: 'Mensaje de ayuda enviado exitosamente.',
+            aviso
+        });
+    } catch (error) {
+        console.error('Error al enviar ayuda del tendero:', error);
+        res.status(500).json({ error: 'Error interno al enviar la solicitud de ayuda.' });
     }
 };

@@ -17,6 +17,7 @@ const PAGE_TITLES = {
   '/panel/backups': 'Backups',
   '/panel/reportes': 'Reportes',
   '/panel/avisos': 'Avisos',
+  '/panel/soporte': 'Soporte',
   '/panel/configuracion': 'Configuración',
 };
 
