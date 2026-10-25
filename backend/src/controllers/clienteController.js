@@ -461,6 +461,88 @@ exports.buscarCliente = async (req, res) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// CLIENTES RECIENTES (últimos a quienes se les hizo un fiado)
+// GET /api/clientes/recientes?tienda_id=xxx&limit=4
+// ═══════════════════════════════════════════════════════════════════════════
+exports.clientesRecientes = async (req, res) => {
+    try {
+        const tenderoId = req.usuario.id;
+        const tiendaId = req.query.tienda_id;
+        const limite = Math.min(parseInt(req.query.limit) || 4, 10);
+
+        if (!tiendaId) {
+            return res.status(400).json({ error: 'El parámetro tienda_id es obligatorio.' });
+        }
+
+        const tienda = await Tienda.findOne({
+            where: { id: tiendaId, tendero_id: tenderoId, activo: true }
+        });
+        if (!tienda) {
+            return res.status(404).json({ error: 'Tienda no encontrada o no tienes permisos.' });
+        }
+
+        // 1. Últimos clientes con fiado, ordenados por su fiado más reciente
+        const ultimos = await Fiado.findAll({
+            attributes: [
+                'cliente_id',
+                [sequelize.fn('MAX', sequelize.col('creado_en')), 'ultimo_fiado']
+            ],
+            where: { tienda_id: tiendaId },
+            group: ['cliente_id'],
+            order: [[sequelize.literal('ultimo_fiado'), 'DESC']],
+            limit: limite,
+            raw: true
+        });
+
+        const ids = ultimos.map(u => u.cliente_id);
+        if (ids.length === 0) {
+            return res.status(200).json({ total: 0, clientes: [] });
+        }
+
+        // 2. Datos del cliente y su vinculación con esta tienda
+        const clientesTienda = await ClienteTienda.findAll({
+            where: { tienda_id: tiendaId, cliente_id: { [Op.in]: ids }, activo: true },
+            include: [{
+                model: Cliente,
+                as: 'cliente',
+                attributes: ['id', 'telefono', 'nombres', 'apellidos', 'direccion', 'foto_perfil_url'],
+                where: { activo: true }
+            }]
+        });
+
+        // 3. Respetar el orden de "más reciente primero"
+        const porCliente = new Map(clientesTienda.map(ct => [ct.cliente_id, ct]));
+        const clientes = ids
+            .map(id => porCliente.get(id))
+            .filter(Boolean)
+            .map(ct => ({
+                id: ct.cliente.id,
+                telefono: ct.cliente.telefono,
+                nombres: ct.cliente.nombres,
+                apellidos: ct.cliente.apellidos,
+                direccion: ct.cliente.direccion,
+                foto_perfil_url: ct.cliente.foto_perfil_url,
+                vinculacion: {
+                    id: ct.id,
+                    limite_credito: ct.limite_credito,
+                    saldo_actual: ct.saldo_actual,
+                    score_pagador: ct.score_pagador,
+                    categoria_pagador: ct.categoria_pagador,
+                    total_fiados: ct.total_fiados,
+                    total_pagos: ct.total_pagos,
+                    cantidad_fiados_mora: ct.cantidad_fiados_mora
+                }
+            }));
+
+        res.status(200).json({ total: clientes.length, clientes });
+
+    } catch (error) {
+        console.error('Error al obtener clientes recientes:', error);
+        res.status(500).json({ error: 'Error interno al obtener los clientes recientes.' });
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 // 6. VINCULAR CLIENTE EXISTENTE A UNA TIENDA
 // POST /api/clientes/:clienteId/vincular
 // ═══════════════════════════════════════════════════════════════════════════
