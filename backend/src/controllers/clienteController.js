@@ -185,7 +185,11 @@ exports.listarClientes = async (req, res) => {
             include: [{
                 model: Cliente,
                 as: 'cliente',
+<<<<<<< HEAD
                 // ✅ AGREGADO 'creado_en' AQUÍ
+=======
+                // Se incluye el campo 'creado_en' para que el frontend pueda mostrar la fecha de registro del cliente en la app (Ej: "Cliente desde octubre 2026").
+>>>>>>> feature/dashboard-estadisticas
                 attributes: ['id', 'telefono', 'nombres', 'apellidos', 'direccion', 'foto_perfil_url', 'creado_en'],
                 where: { activo: true }
             }],
@@ -200,7 +204,12 @@ exports.listarClientes = async (req, res) => {
             apellidos: ct.cliente.apellidos,
             direccion: ct.cliente.direccion,
             foto_perfil_url: ct.cliente.foto_perfil_url,
+<<<<<<< HEAD
             creado_en: ct.cliente.creado_en, // ✅ LO ENVIAMOS AL FRONTEND
+=======
+            // Se retorna la fecha de creación al frontend para construir el perfil del cliente.
+            creado_en: ct.cliente.creado_en, 
+>>>>>>> feature/dashboard-estadisticas
             vinculacion: {
                 id: ct.id,
                 limite_credito: ct.limite_credito,
@@ -874,7 +883,11 @@ exports.resumenCliente = async (req, res) => {
 
         // Validar que el cliente exista
         const cliente = await Cliente.findByPk(clienteId, {
+<<<<<<< HEAD
             // ✅ AGREGADO 'creado_en' AQUÍ TAMBIÉN
+=======
+            // Se incluye el campo 'creado_en' para que el frontend pueda mostrar la fecha exacta en la que el cliente se registró.
+>>>>>>> feature/dashboard-estadisticas
             attributes: ['id', 'telefono', 'nombres', 'apellidos', 'direccion', 'foto_perfil_url', 'creado_en']
         });
         if (!cliente) {
@@ -983,7 +996,8 @@ exports.resumenCliente = async (req, res) => {
                 apellidos: cliente.apellidos,
                 direccion: cliente.direccion,
                 foto_perfil_url: cliente.foto_perfil_url,
-                creado_en: cliente.creado_en // ✅ LO ENVIAMOS AL FRONTEND
+                // Se retorna la fecha de creación para que el frontend pueda renderizar el perfil del cliente correctamente.
+                creado_en: cliente.creado_en
             },
             resumen_global: {
                 total_tiendas_vinculadas: resumenPorTienda.length,
