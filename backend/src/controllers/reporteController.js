@@ -1,4 +1,5 @@
-const { Producto, Tienda, Categoria } = require('../models');
+// ✅ Agregamos 'Tendero' a la importación
+const { Producto, Tienda, Categoria, Tendero } = require('../models');
 const { Op } = require('sequelize');
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -172,8 +173,6 @@ exports.eliminarProducto = async (req, res) => {
         console.error('Error al eliminar producto:', error);
         res.status(500).json({ error: 'Error interno al eliminar el producto.' });
     }
-
-
 };
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -182,7 +181,6 @@ exports.eliminarProducto = async (req, res) => {
 
 exports.obtenerReporteVentas = async (req, res) => {
     try {
-        // Aquí irá tu lógica de reporte de ventas
         res.status(200).json({
             msg: 'Reporte de ventas obtenido exitosamente (función en desarrollo)',
             data: []
@@ -195,7 +193,6 @@ exports.obtenerReporteVentas = async (req, res) => {
 
 exports.obtenerReporteProductos = async (req, res) => {
     try {
-        // Aquí irá tu lógica de reporte de productos
         res.status(200).json({
             msg: 'Reporte de productos obtenido exitosamente (función en desarrollo)',
             data: []
@@ -203,5 +200,83 @@ exports.obtenerReporteProductos = async (req, res) => {
     } catch (error) {
         console.error('Error al obtener reporte de productos:', error);
         res.status(500).json({ error: 'Error interno al obtener el reporte de productos.' });
+    }
+};
+
+exports.obtenerEstadisticas = async (req, res) => {
+    try {
+        const totalTiendas = await Tienda.count();
+        const totalTenderos = await Tendero.count();
+
+        const tiendasActivas = await Tienda.count({ where: { activo: true } });
+        const tiendasInactivas = await Tienda.count({ where: { activo: false } });
+        
+        const tenderosActivos = await Tendero.count({ where: { activo: true } });
+        const tenderosInactivos = await Tendero.count({ where: { activo: false } });
+
+        // ─── 1. CRECIMIENTO CON EL FORMATO QUE ESPERA REACT ───
+        const getGrowthData = async (Model) => {
+            const records = await Model.findAll({ attributes: ['creado_en'], raw: true });
+            const currentDate = new Date();
+            const data = [];
+            
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+                
+                // ✅ Formato "YYYY-MM" (ej: 2026-10) para que haga match con React
+                const mesKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                
+                const count = records.filter(r => {
+                    if (!r.creado_en) return false;
+                    const rd = new Date(r.creado_en);
+                    return rd.getMonth() === d.getMonth() && rd.getFullYear() === d.getFullYear();
+                }).length;
+                
+                // ✅ Usamos "total" en lugar de "cantidad"
+                data.push({ mes: mesKey, total: count });
+            }
+            return data;
+        };
+
+        const crecimientoTiendas = await getGrowthData(Tienda);
+        const crecimientoTenderos = await getGrowthData(Tendero);
+
+        // ─── 2. TABLA DE ÚLTIMOS TENDEROS ───
+        const ultimosTenderosRaw = await Tendero.findAll({
+            limit: 5,
+            order: [['creado_en', 'DESC']],
+            include: [{
+                model: Tienda,
+                as: 'tiendas',
+                attributes: ['nombre']
+            }]
+        });
+
+        const ultimosTenderos = ultimosTenderosRaw.map(t => ({
+            id: t.id,
+            nombre: `${t.nombres} ${t.apellidos}`,
+            tienda: t.tiendas && t.tiendas.length > 0 ? t.tiendas[0].nombre : 'Sin tienda',
+            estado: t.activo ? 'Activo' : 'Inactivo',
+            ultima_actividad: t.creado_en
+        }));
+
+        // ─── 3. RESPUESTA FINAL ───
+        res.status(200).json({
+            resumen: {
+                totalTiendas,
+                totalTenderos,
+                tiendasActivas,
+                tiendasInactivas,
+                tenderosActivos,
+                tenderosInactivos
+            },
+            crecimientoTiendas,
+            crecimientoTenderos,
+            ultimosTenderos
+        });
+
+    } catch (error) {
+        console.error('Error al obtener estadísticas del dashboard:', error);
+        res.status(500).json({ error: 'Error interno al obtener las estadísticas.' });
     }
 };
