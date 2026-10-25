@@ -424,7 +424,11 @@ const AnnouncementsPage = () => {
     try {
       setLoading(true);
       const data = await getAvisos({ buscar, prioridad });
-      setAvisos(data.avisos || []);
+      // Filtrar para mostrar únicamente avisos emitidos por el Administrador (no los mensajes de soporte de los tenderos)
+      const listaAvisos = (data.avisos || []).filter(
+        (a) => a.emisor_tipo !== 'tendero' && a.tipo_alerta !== 'ayuda_soporte'
+      );
+      setAvisos(listaAvisos);
     } catch (err) {
       console.error(err);
       toast.error("Error al cargar los avisos");
