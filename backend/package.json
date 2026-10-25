@@ -4,12 +4,9 @@
   "description": "Fiadito - Sistema de gestión de fiados",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon server.js",
     "start": "node server.js",
-    "db:reset": "node scripts/reset-db.js",
-    "db:sync": "node scripts/sync-db.js",
-    "db:verify": "node scripts/verificar-db.js",
-    "admin:create": "node scripts/create-admin.js"
+    "dev": "nodemon server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
@@ -17,11 +14,13 @@
   "type": "commonjs",
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.11.0",
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^4.22.2",
     "jsonwebtoken": "^9.0.3",
-    "pg": "^8.23.1",
+    "multer": "^2.5.0",
+    "pg": "^8.23.0",
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.37.8"
   },
