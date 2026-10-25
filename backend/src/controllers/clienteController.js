@@ -1,4 +1,4 @@
-const { Cliente, ClienteTienda, Tienda, Fiado, sequelize } = require('../models');
+const { Cliente, ClienteTienda, Tienda, Fiado, FiadoDetalle, Producto, Pago, Tendero, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -185,7 +185,8 @@ exports.listarClientes = async (req, res) => {
             include: [{
                 model: Cliente,
                 as: 'cliente',
-                attributes: ['id', 'telefono', 'nombres', 'apellidos', 'direccion', 'foto_perfil_url'],
+                // ✅ AGREGADO 'creado_en' AQUÍ
+                attributes: ['id', 'telefono', 'nombres', 'apellidos', 'direccion', 'foto_perfil_url', 'creado_en'],
                 where: { activo: true }
             }],
             order: [['creado_en', 'DESC']]
@@ -199,6 +200,7 @@ exports.listarClientes = async (req, res) => {
             apellidos: ct.cliente.apellidos,
             direccion: ct.cliente.direccion,
             foto_perfil_url: ct.cliente.foto_perfil_url,
+            creado_en: ct.cliente.creado_en, // ✅ LO ENVIAMOS AL FRONTEND
             vinculacion: {
                 id: ct.id,
                 limite_credito: ct.limite_credito,
@@ -872,7 +874,8 @@ exports.resumenCliente = async (req, res) => {
 
         // Validar que el cliente exista
         const cliente = await Cliente.findByPk(clienteId, {
-            attributes: ['id', 'telefono', 'nombres', 'apellidos', 'direccion', 'foto_perfil_url']
+            // ✅ AGREGADO 'creado_en' AQUÍ TAMBIÉN
+            attributes: ['id', 'telefono', 'nombres', 'apellidos', 'direccion', 'foto_perfil_url', 'creado_en']
         });
         if (!cliente) {
             return res.status(404).json({ error: 'Cliente no encontrado.' });
@@ -979,7 +982,8 @@ exports.resumenCliente = async (req, res) => {
                 nombres: cliente.nombres,
                 apellidos: cliente.apellidos,
                 direccion: cliente.direccion,
-                foto_perfil_url: cliente.foto_perfil_url
+                foto_perfil_url: cliente.foto_perfil_url,
+                creado_en: cliente.creado_en // ✅ LO ENVIAMOS AL FRONTEND
             },
             resumen_global: {
                 total_tiendas_vinculadas: resumenPorTienda.length,
