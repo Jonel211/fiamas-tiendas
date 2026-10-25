@@ -24,6 +24,8 @@ async function filtroTendero(tenderoId) {
 
     return {
         estado: { [Op.ne]: 'cerrada' },
+        tipo_alerta: { [Op.ne]: 'ayuda_soporte' },
+        emisor_tipo: { [Op.ne]: 'tendero' },
         [Op.or]: or,
     };
 }
@@ -133,5 +135,32 @@ exports.marcarTodas = async (req, res) => {
     } catch (e) {
         console.error('Error al marcar todas:', e);
         res.status(500).json({ error: 'Error interno.' });
+    }
+};
+
+// PATCH /api/notificaciones/limpiar-todas
+exports.limpiarTodas = async (req, res) => {
+    try {
+        const tenderoId = req.usuario.id;
+        const where = await filtroTendero(tenderoId);
+        if (!where) return res.status(404).json({ error: 'Tendero no encontrado o inactivo.' });
+
+        const alertas = await Alerta.findAll({ where, attributes: ['id', 'destinatario_tipo', 'estado', 'leida_por'] });
+
+        for (const alerta of alertas) {
+            if (alerta.destinatario_tipo === 'todos') {
+                const leidaPor = Array.isArray(alerta.leida_por) ? [...alerta.leida_por] : [];
+                if (!leidaPor.includes(tenderoId)) {
+                    leidaPor.push(tenderoId);
+                    await alerta.update({ leida_por: leidaPor });
+                }
+            } else {
+                await alerta.update({ estado: 'cerrada' });
+            }
+        }
+        res.sendStatus(204);
+    } catch (e) {
+        console.error('Error al limpiar todas:', e);
+        res.status(500).json({ error: 'Error interno al limpiar notificaciones.' });
     }
 };

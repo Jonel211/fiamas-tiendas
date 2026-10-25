@@ -33,6 +33,12 @@ const startServer = async () => {
         await testConnection();
 
         // 2. Sincronizar modelos
+        try {
+            await sequelize.query('ALTER TABLE alertas ADD COLUMN IF NOT EXISTS leida_por UUID[] DEFAULT \'{}\';');
+        } catch (e) {
+            // Ignorar si no aplica o ya existe
+        }
+
         const shouldAlter = process.env.DB_SYNC_ALTER ? process.env.DB_SYNC_ALTER === 'true' : process.env.NODE_ENV !== 'production';
         if (shouldAlter) {
             console.log('Sincronizando modelos con la base de datos (alter: true)...');
