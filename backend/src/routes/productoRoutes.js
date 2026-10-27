@@ -10,6 +10,9 @@ router.post('/', verificarToken, upload.single('imagen'), productoController.cre
 // Listar productos de una tienda específica
 router.get('/tienda/:tiendaId', verificarToken, productoController.listarProductosPorTienda);
 
+// Buscar productos por CODIGO DE BARRAS (para el POS)
+router.get('/barcode/:codigo', verificarToken, productoController.buscarPorCodigoBarras);
+
 // Obtener un producto por ID
 router.get('/:id', verificarToken, productoController.obtenerProductoPorId);
 

@@ -237,3 +237,18 @@ exports.eliminarProducto = async (req, res) => {
         res.status(500).json({ error: 'Error interno al eliminar el producto.' });
     }
 };
+
+// BUSQUEDA POR CODIGO DE BARRAS, SE USA EN EL POS PARA AGREGAR PRODUCTOS AL CARRITO
+exports.buscarPorCodigoBarras = async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const { tienda_id } = req.query;
+        const producto = await Producto.findOne({ 
+            where: { codigo_barras: codigo, tienda_id: tienda_id, activo: true } 
+        });
+        if (!producto) return res.status(404).json({ error: 'Producto no encontrado' });
+        res.status(200).json(producto);
+    } catch (error) {
+        res.status(500).json({ error: 'Error al buscar producto' });
+    }
+};

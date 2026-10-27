@@ -820,7 +820,8 @@ exports.listarFiadosCliente = async (req, res) => {
                 {
                     model: Pago,
                     as: 'pagos',
-                    attributes: ['id', 'monto', 'fecha_pago', 'metodo_pago'],
+                    // ✅ CORRECCIÓN AQUÍ: Cambiado 'metodo_pago' por 'tipo_pago'
+                    attributes: ['id', 'monto', 'fecha_pago', 'tipo_pago'], 
                     order: [['fecha_pago', 'DESC']]
                 }
             ],
@@ -847,7 +848,7 @@ exports.listarFiadosCliente = async (req, res) => {
                 id: pago.id,
                 monto: pago.monto,
                 fecha_pago: pago.fecha_pago,
-                metodo_pago: pago.metodo_pago
+                tipo_pago: pago.tipo_pago // ✅ CORRECCIÓN AQUÍ TAMBIÉN
             }))
         }));
 
