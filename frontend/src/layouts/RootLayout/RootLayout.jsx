@@ -15,6 +15,7 @@ import Sidebar from './Sidebar/Sidebar';
 import Header from './Header/Header';
 import { useTheme } from '@/context/ThemeContext';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import panelBgLight from '@/assets/images/panel-bg-light.jpg';
 import panelBgDark from '@/assets/images/panel-bg-dark.jpg';
 
@@ -47,7 +48,9 @@ const RootLayout = () => {
           <div className="absolute inset-0 bg-white/10 dark:bg-[#0F1420]/30 pointer-events-none" />
 
           <div className="relative h-full overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
-            <Outlet />
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </div>
       </div>

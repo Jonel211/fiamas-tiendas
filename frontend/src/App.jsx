@@ -7,6 +7,7 @@ import VendorsPage from './pages/VendorsPage';
 import BackupsPage from './pages/BackupsPage';
 import ReportsPage from './pages/ReportsPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
+import SupportPage from './pages/SupportPage';
 import ProfilePage from './pages/ProfilePage';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
@@ -35,6 +36,7 @@ function App() {
                 <Route path="backups" element={<BackupsPage />} />
                 <Route path="reportes" element={<ReportsPage />} />
                 <Route path="avisos" element={<AnnouncementsPage />} />
+                <Route path="soporte" element={<SupportPage />} />
                 <Route path="configuracion" element={<ProfilePage />} />
               </Route>
             </Route>

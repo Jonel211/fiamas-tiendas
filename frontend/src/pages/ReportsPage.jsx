@@ -192,7 +192,12 @@ const ReportsPage = () => {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button onClick={load} title="Actualizar datos" disabled={loading} className="p-2 rounded-lg border border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50">
+          <button
+            onClick={load}
+            title="Actualizar datos"
+            disabled={loading}
+            className="p-2 border border-white/50 dark:border-white/10 bg-white/85 dark:bg-[#1A1F2E]/80 hover:bg-gray-50 dark:hover:bg-white/5 rounded-md text-gray-600 dark:text-gray-300 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+          >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
