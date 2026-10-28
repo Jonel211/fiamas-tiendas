@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const tenderoController = require('../controllers/tenderoController');
 const { verificarToken, verificarRol } = require('../middleware/authMiddleware');
+const upload = require('../middleware/upload');
 
 // RUTAS DE TENDERO
 
@@ -39,6 +40,16 @@ router.put(
     verificarToken,
     verificarRol(['tendero']),
     tenderoController.actualizarPerfil
+);
+
+// 2.1 SUBIR FOTO DE PERFIL (TENDERO LOGUEADO)
+// PATCH /api/tenderos/perfil/foto  (campo multipart: "foto")
+router.patch(
+    '/perfil/foto',
+    verificarToken,
+    verificarRol(['tendero']),
+    upload.single('foto'),
+    tenderoController.subirFotoPerfil
 );
 
 // 3. CAMBIAR CONTRASEÑA (TENDERO LOGUEADO)

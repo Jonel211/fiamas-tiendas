@@ -1,10 +1,8 @@
 const multer = require('multer');
 
-// Usamos memoryStorage para no guardar el archivo en el disco del servidor,
-// sino pasarlo directamente a Cloudinary desde la memoria RAM.
+// memoryStorage: el archivo no se guarda en disco, pasa directo a Cloudinary.
 const storage = multer.memoryStorage();
 
-// Limitamos el tamaño a 5MB y solo aceptamos imágenes
 const upload = multer({
     storage: storage,
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
@@ -16,5 +14,17 @@ const upload = multer({
         }
     }
 });
+
+// Igual que upload.single(campo), pero responde 400/413 con JSON
+// en vez de dejar que Express devuelva un 500 en HTML.
+upload.imagen = (campo) => (req, res, next) => {
+    upload.single(campo)(req, res, (err) => {
+        if (!err) return next();
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(413).json({ error: 'La imagen supera el máximo de 5 MB.' });
+        }
+        return res.status(400).json({ error: err.message || 'Archivo inválido.' });
+    });
+};
 
 module.exports = upload;
