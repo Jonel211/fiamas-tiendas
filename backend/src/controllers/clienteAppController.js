@@ -119,6 +119,43 @@ exports.actualizarMiPerfil = async (req, res) => {
     }
 };
 
+// CAMBIAR CONTRASEÑA / PIN DEL CLIENTE
+// PUT /api/app-cliente/cambiar-password
+exports.cambiarPassword = async (req, res) => {
+    try {
+        const clienteId = req.usuario.id;
+        const { currentPassword, newPassword } = req.body;
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: 'Debes proporcionar la contraseña actual y la nueva.' });
+        }
+
+        const cliente = await Cliente.findByPk(clienteId);
+        if (!cliente) {
+            return res.status(404).json({ error: 'Cliente no encontrado.' });
+        }
+
+        // Validar contraseña actual
+        const esValida = await cliente.validarPassword(currentPassword);
+        if (!esValida) {
+            return res.status(400).json({ error: 'La contraseña o PIN actual es incorrecto.' });
+        }
+
+        // Asignar y guardar la nueva contraseña/PIN (el hook del modelo encrypta con bcrypt)
+        cliente.password_hash = newPassword;
+        cliente.actualizado_en = new Date();
+        await cliente.save();
+
+        res.status(200).json({
+            msg: 'Contraseña/PIN actualizado exitosamente.'
+        });
+    } catch (error) {
+        console.error('Error al cambiar contraseña:', error);
+        res.status(500).json({ error: 'Error interno al actualizar la contraseña.' });
+    }
+};
+
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 3. MIS TIENDAS VINCULADAS
 // GET /api/app-cliente/mis-tiendas
