@@ -1,6 +1,7 @@
 const { Tendero, Tienda, Cliente, Fiado, FiadoDetalle, Pago, ScoringHistorial, LogSistema, ClienteTienda, Producto, Categoria, Alerta, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const crypto = require('crypto');
+const { subirImagen } = require('../utils/cloudinaryUpload');
 
 // 0. OBTENER TODOS LOS TENDEROS (PANEL ADMIN)
 exports.getTenderosAdmin = async (req, res) => {
@@ -260,6 +261,33 @@ exports.getPerfil = async (req, res) => {
     }
 };
 
+// 1.1 SUBIR FOTO DE PERFIL
+exports.subirFotoPerfil = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se recibió ninguna imagen.' });
+        }
+
+        const tendero = await Tendero.findOne({
+            where: { id: req.usuario.id, activo: true }
+        });
+        if (!tendero) {
+            return res.status(404).json({ error: 'Tendero no encontrado.' });
+        }
+
+        const url = await subirImagen(req.file, 'fiamas_app/tenderos');
+        await tendero.update({ foto_perfil_url: url, actualizado_en: new Date() });
+
+        res.status(200).json({
+            msg: 'Foto de perfil actualizada',
+            foto_perfil_url: url
+        });
+    } catch (error) {
+        console.error('Error al subir foto de perfil:', error);
+        res.status(500).json({ error: 'Error interno al subir la foto.' });
+    }
+};
+
 // 2. ACTUALIZAR PERFIL DEL TENDERO
 // Según el esquema de la BD (scripts/base-datos.md), los campos editables son nombres, apellidos y teléfono.
 exports.actualizarPerfil = async (req, res) => {
@@ -289,14 +317,15 @@ exports.actualizarPerfil = async (req, res) => {
 
         await tendero.update(datosActualizacion);
 
-        res.status(200).json({
+                res.status(200).json({
             msg: 'Perfil actualizado exitosamente',
             tendero: {
                 id: tendero.id,
                 dni: tendero.dni,
                 nombres: tendero.nombres,
                 apellidos: tendero.apellidos,
-                telefono: tendero.telefono
+                telefono: tendero.telefono,
+                foto_perfil_url: tendero.foto_perfil_url
             }
         });
     } catch (error) {

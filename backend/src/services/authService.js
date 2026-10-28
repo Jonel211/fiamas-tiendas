@@ -3,10 +3,13 @@ const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { Administrador, Tendero, Cliente, Tienda, sequelize } = require('../models');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fiamas_default_secret_jwt_key_2026';
+// Sin valor por defecto: si falta la variable, el servidor no arranca.
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error('Falta la variable de entorno JWT_SECRET.');
+}
 const JWT_EXPIRE = process.env.JWT_EXPIRE || '24h';
 
-// Generación de tokens JWT consistentes
 const generarToken = (payload) => {
     return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRE });
 };
@@ -25,28 +28,27 @@ const login = async ({ identificador, password, rolRequerido }) => {
         throw error;
     }
 
+    const id = String(identificador).trim();
+
     let usuario = null;
     let rol = rolRequerido || null;
     let tiendaId = null;
 
-    // A. Si se especificó rol 'admin' o el identificador tiene '@'
-    if (rolRequerido === 'admin' || (!rolRequerido && identificador.includes('@'))) {
-        const admin = await Administrador.findOne({ where: { email: identificador, activo: true } });
+    // A. Administrador
+    if (rolRequerido === 'admin' || (!rolRequerido && id.includes('@'))) {
+        const admin = await Administrador.findOne({ where: { email: id, activo: true } });
         if (admin && await admin.validarPassword(password)) {
             usuario = admin;
             rol = 'admin';
         }
     }
 
-    // B. Si no se encontró y se pidió tendero o búsqueda en cascada por teléfono o DNI
+    // B. Tendero (por teléfono o DNI)
     let tenderoEncontrado = null;
     if (!usuario && (rolRequerido === 'tendero' || !rolRequerido)) {
         tenderoEncontrado = await Tendero.findOne({
             where: {
-                [Op.or]: [
-                    { telefono: identificador },
-                    { dni: identificador }
-                ],
+                [Op.or]: [{ telefono: id }, { dni: id }],
                 activo: true
             }
         });
@@ -55,19 +57,20 @@ const login = async ({ identificador, password, rolRequerido }) => {
                 usuario = tenderoEncontrado;
                 rol = 'tendero';
 
+                // Tienda por defecto: la más antigua (orden estable).
                 const tienda = await Tienda.findOne({
-                    where: { tendero_id: tenderoEncontrado.id, activo: true }
+                    where: { tendero_id: tenderoEncontrado.id, activo: true },
+                    order: [['creado_en', 'ASC']]
                 });
                 tiendaId = tienda ? tienda.id : null;
             }
         }
     }
 
-    // C. Si no se encontró y se pidió cliente o búsqueda en cascada por teléfono
-    // NOTA: Si ya se encontró un tendero con este teléfono/DNI pero la contraseña no coincidió,
-    // NO debemos permitir el acceso como cliente (evita que una contraseña antigua o secundaria permita acceso)
+    // C. Cliente (por teléfono). Si el teléfono pertenece a un tendero con otra
+    //    contraseña, NO se permite entrar como cliente.
     if (!usuario && !tenderoEncontrado && (rolRequerido === 'cliente' || !rolRequerido)) {
-        const cliente = await Cliente.findOne({ where: { telefono: identificador, activo: true } });
+        const cliente = await Cliente.findOne({ where: { telefono: id, activo: true } });
         if (cliente) {
             if (!cliente.password_hash) {
                 const error = new Error('El cliente aún no tiene una contraseña configurada en la aplicación.');
@@ -78,8 +81,6 @@ const login = async ({ identificador, password, rolRequerido }) => {
             if (await cliente.validarPassword(password)) {
                 usuario = cliente;
                 rol = 'cliente';
-
-                // Registrar último acceso
                 await cliente.update({ ultimo_acceso: new Date() });
             }
         }
@@ -136,14 +137,10 @@ const registrarAdministrador = async ({ nombre, email, password, telefono }) => 
         telefono: telefono || null
     });
 
-    return {
-        id: admin.id,
-        nombre: admin.nombre,
-        email: admin.email
-    };
+    return { id: admin.id, nombre: admin.nombre, email: admin.email };
 };
 
-// 3. REGISTRO DE TENDERO (con Tienda por defecto transaccional)
+// 3. REGISTRO DE TENDERO (con tienda por defecto, transaccional)
 const registrarTendero = async ({ dni, nombres, apellidos, password, telefono, nombre_tienda }) => {
     if (!dni || !nombres || !apellidos || !telefono || !password) {
         const error = new Error('DNI, nombres, apellidos, teléfono y contraseña son obligatorios.');
@@ -153,21 +150,20 @@ const registrarTendero = async ({ dni, nombres, apellidos, password, telefono, n
 
     const t = await sequelize.transaction();
     try {
-        const existeDni = await Tendero.findOne({ where: { dni } });
+        const existeDni = await Tendero.findOne({ where: { dni }, transaction: t });
         if (existeDni) {
             const error = new Error('Ya existe un tendero con ese DNI.');
             error.statusCode = 400;
             throw error;
         }
 
-        const existeTelefono = await Tendero.findOne({ where: { telefono } });
+        const existeTelefono = await Tendero.findOne({ where: { telefono }, transaction: t });
         if (existeTelefono) {
             const error = new Error('Ya existe un tendero con ese número de teléfono.');
             error.statusCode = 400;
             throw error;
         }
 
-        // Crear tendero
         const nuevoTendero = await Tendero.create({
             dni,
             nombres,
@@ -176,7 +172,6 @@ const registrarTendero = async ({ dni, nombres, apellidos, password, telefono, n
             telefono
         }, { transaction: t });
 
-        // Crear tienda vinculada con QR token
         const nuevaTienda = await Tienda.create({
             tendero_id: nuevoTendero.id,
             nombre: nombre_tienda || `Tienda de ${nombres}`,
