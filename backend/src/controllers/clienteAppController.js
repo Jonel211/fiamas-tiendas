@@ -82,10 +82,11 @@ exports.miPerfil = async (req, res) => {
 
 // 2. ACTUALIZAR PERFIL DEL CLIENTE
 // PUT /api/app-cliente/mi-perfil
+// ═══════════════════════════════════════════════════════════════════════════
 exports.actualizarMiPerfil = async (req, res) => {
     try {
         const clienteId = req.usuario.id;
-        const { nombres, apellidos, direccion, foto_perfil_url } = req.body;
+        const { direccion, foto_perfil_url } = req.body;
 
         const cliente = await Cliente.findByPk(clienteId);
         if (!cliente) {
@@ -93,8 +94,6 @@ exports.actualizarMiPerfil = async (req, res) => {
         }
 
         const datosActualizacion = {};
-        if (nombres !== undefined) datosActualizacion.nombres = String(nombres).trim();
-        if (apellidos !== undefined) datosActualizacion.apellidos = String(apellidos).trim();
         if (direccion !== undefined) datosActualizacion.direccion = direccion ? String(direccion).trim() : null;
         if (foto_perfil_url !== undefined) datosActualizacion.foto_perfil_url = foto_perfil_url;
 
