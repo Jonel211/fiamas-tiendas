@@ -1,12 +1,35 @@
 const { Tienda, Tendero, Producto, Categoria, Alerta, Fiado, FiadoDetalle, Pago, ScoringHistorial, LogSistema, ClienteTienda, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const crypto = require('crypto');
+const { subirImagen } = require('../utils/cloudinaryUpload');
+
+const INCLUDE_TENDERO_BASICO = [{ model: Tendero, as: 'tendero', attributes: ['id', 'nombres', 'apellidos', 'telefono'] }];
+const INCLUDE_TENDERO_COMPLETO = [{ model: Tendero, as: 'tendero', attributes: ['id', 'dni', 'nombres', 'apellidos', 'telefono'] }];
+
+// ──────────────────────────────────────────────────────────────────────────
+// AUXILIAR: devuelve la tienda solo si el usuario tiene derecho sobre ella.
+// - Admin: cualquier tienda.
+// - Tendero: solo sus tiendas activas.
+// Si el id no es válido para la base de datos devuelve null (404, no 500).
+// ──────────────────────────────────────────────────────────────────────────
+async function buscarTiendaPermitida(req, tiendaId, opciones = {}) {
+    if (!tiendaId) return null;
+    const where = req.usuario.rol === 'admin'
+        ? { id: tiendaId }
+        : { id: tiendaId, tendero_id: req.usuario.id, activo: true };
+    try {
+        return await Tienda.findOne({ where, ...opciones });
+    } catch (error) {
+        if (error.name === 'SequelizeDatabaseError') return null;
+        throw error;
+    }
+}
 
 // 0. OBTENER TODAS LAS TIENDAS (PANEL ADMIN)
 exports.getTiendasAdmin = async (req, res) => {
     try {
         const tiendas = await Tienda.findAll({
-            include: [{ model: Tendero, as: 'tendero', attributes: ['id', 'dni', 'nombres', 'apellidos', 'telefono'] }],
+            include: INCLUDE_TENDERO_COMPLETO,
             order: [['creado_en', 'DESC']]
         });
         res.status(200).json({ msg: 'Listado de tiendas obtenido exitosamente', tiendas });
@@ -19,24 +42,23 @@ exports.getTiendasAdmin = async (req, res) => {
 // 0.1 CREAR TIENDA (PANEL ADMIN O TENDERO)
 exports.crearTiendaAdmin = async (req, res) => {
     try {
-        const { nombre, tendero_id, imagen_url, direccion, ruc, telefono, activo, qr_activo } = req.body;
+        const { nombre, imagen_url, direccion, ruc, telefono, activo, qr_activo } = req.body;
 
-        if (!nombre || !tendero_id) {
+        // El tendero SIEMPRE crea tiendas a su nombre; solo el admin elige el dueño.
+        const tendero_id = req.usuario.rol === 'admin' ? req.body.tendero_id : req.usuario.id;
+
+        if (!nombre || !String(nombre).trim() || !tendero_id) {
             return res.status(400).json({ error: 'El nombre de la tienda y el tendero_id son obligatorios.' });
         }
 
-        if (ruc && ruc.trim() !== '') {
-            const rucLimpio = String(ruc).trim();
-            if (!/^\d{11}$/.test(rucLimpio)) {
-                return res.status(400).json({ error: 'El RUC debe tener exactamente 11 dígitos numéricos.' });
-            }
+        const rucLimpio = ruc !== undefined && ruc !== null ? String(ruc).trim() : '';
+        if (rucLimpio !== '' && !/^\d{11}$/.test(rucLimpio)) {
+            return res.status(400).json({ error: 'El RUC debe tener exactamente 11 dígitos numéricos.' });
         }
 
-        if (telefono && telefono.trim() !== '') {
-            const telLimpio = String(telefono).trim();
-            if (!/^\d{9}$/.test(telLimpio)) {
-                return res.status(400).json({ error: 'El teléfono debe tener exactamente 9 dígitos numéricos.' });
-            }
+        const telLimpio = telefono !== undefined && telefono !== null ? String(telefono).trim() : '';
+        if (telLimpio !== '' && !/^\d{9}$/.test(telLimpio)) {
+            return res.status(400).json({ error: 'El teléfono debe tener exactamente 9 dígitos numéricos.' });
         }
 
         const tendero = await Tendero.findByPk(tendero_id);
@@ -49,16 +71,14 @@ exports.crearTiendaAdmin = async (req, res) => {
             tendero_id,
             imagen_url: imagen_url || null,
             direccion: direccion || null,
-            ruc: ruc ? String(ruc).trim() : null,
-            telefono: telefono ? String(telefono).trim() : tendero.telefono,
+            ruc: rucLimpio || null,
+            telefono: telLimpio || tendero.telefono,
             qr_token: crypto.randomUUID(),
             qr_activo: qr_activo !== undefined ? qr_activo : true,
             activo: activo !== undefined ? activo : true
         });
 
-        const tiendaCompleta = await Tienda.findByPk(nuevaTienda.id, {
-            include: [{ model: Tendero, as: 'tendero', attributes: ['id', 'dni', 'nombres', 'apellidos', 'telefono'] }]
-        });
+        const tiendaCompleta = await Tienda.findByPk(nuevaTienda.id, { include: INCLUDE_TENDERO_COMPLETO });
 
         res.status(201).json({ msg: 'Tienda creada exitosamente', tienda: tiendaCompleta });
     } catch (error) {
@@ -69,18 +89,27 @@ exports.crearTiendaAdmin = async (req, res) => {
         if (error.name === 'SequelizeValidationError') {
             return res.status(400).json({ error: error.errors?.[0]?.message || 'Datos de tienda inválidos.' });
         }
-        res.status(500).json({ error: error.message || 'Error interno al crear la tienda.' });
+        res.status(500).json({ error: 'Error interno al crear la tienda.' });
     }
 };
 
 // 1. OBTENER DATOS DE UNA TIENDA (TENDERO LOGUEADO)
+// GET /api/tiendas/mi-tienda?tienda_id=xxx  (tienda_id es opcional)
 exports.getTienda = async (req, res) => {
     try {
-        const tenderoId = req.usuario.id;
-        const tienda = await Tienda.findOne({
-            where: { tendero_id: tenderoId, activo: true },
-            include: [{ model: Tendero, as: 'tendero', attributes: ['id', 'nombres', 'apellidos', 'telefono'] }]
-        });
+        const tiendaId = req.query.tienda_id;
+        let tienda;
+
+        if (tiendaId) {
+            tienda = await buscarTiendaPermitida(req, tiendaId, { include: INCLUDE_TENDERO_BASICO });
+        } else {
+            // Sin tienda_id: la más antigua, de forma estable (antes era arbitraria).
+            tienda = await Tienda.findOne({
+                where: { tendero_id: req.usuario.id, activo: true },
+                include: INCLUDE_TENDERO_BASICO,
+                order: [['creado_en', 'ASC']]
+            });
+        }
 
         if (!tienda) {
             return res.status(404).json({ error: 'No se encontró una tienda activa para este tendero.' });
@@ -93,35 +122,23 @@ exports.getTienda = async (req, res) => {
     }
 };
 
-// ✅ 6. OBTENER TODAS LAS TIENDAS DEL TENDERO AUTENTICADO (NUEVO)
+// 6. OBTENER TODAS LAS TIENDAS DEL TENDERO AUTENTICADO
 exports.getMisTiendas = async (req, res) => {
     try {
-        const tenderoId = req.usuario.id;
-
         const tiendas = await Tienda.findAll({
-            where: {
-                tendero_id: tenderoId,
-                activo: true
-            },
-            include: [{
-                model: Tendero,
-                as: 'tendero',
-                attributes: ['id', 'nombres', 'apellidos', 'telefono']
-            }],
+            where: { tendero_id: req.usuario.id, activo: true },
+            include: INCLUDE_TENDERO_BASICO,
             order: [['creado_en', 'DESC']]
         });
 
-        res.status(200).json({
-            msg: 'Tiendas del tendero obtenidas exitosamente',
-            tiendas
-        });
+        res.status(200).json({ msg: 'Tiendas del tendero obtenidas exitosamente', tiendas });
     } catch (error) {
         console.error('Error al obtener tiendas del tendero:', error);
         res.status(500).json({ error: 'Error interno al obtener las tiendas.' });
     }
 };
 
-// 2. ACTUALIZAR DATOS DE LA TIENDA (CORREGIDO Y SEGURO)
+// 2. ACTUALIZAR DATOS DE LA TIENDA
 exports.actualizarTienda = async (req, res) => {
     try {
         const esAdmin = req.usuario.rol === 'admin';
@@ -131,38 +148,25 @@ exports.actualizarTienda = async (req, res) => {
             return res.status(400).json({ error: 'ID de la tienda es requerido para actualizar.' });
         }
 
-        let tienda;
-
-        if (esAdmin) {
-            tienda = await Tienda.findByPk(tiendaId);
-        } else {
-            const tenderoId = req.usuario.id;
-            // ✅ VERIFICACIÓN CRÍTICA: Solo permite editar si la tienda pertenece a este tendero
-            tienda = await Tienda.findOne({
-                where: {
-                    id: tiendaId,
-                    tendero_id: tenderoId,
-                    activo: true
-                }
-            });
-        }
-
+        const tienda = await buscarTiendaPermitida(req, tiendaId);
         if (!tienda) {
             return res.status(404).json({ error: 'Tienda no encontrada o no tienes permisos para editarla.' });
         }
 
         const { nombre, imagen_url, direccion, ruc, telefono, activo, qr_activo } = req.body;
 
+        if (nombre !== undefined && !String(nombre).trim()) {
+            return res.status(400).json({ error: 'El nombre de la tienda no puede estar vacío.' });
+        }
+
         if (ruc !== undefined && ruc !== null && String(ruc).trim() !== '') {
-            const rucLimpio = String(ruc).trim();
-            if (!/^\d{11}$/.test(rucLimpio)) {
+            if (!/^\d{11}$/.test(String(ruc).trim())) {
                 return res.status(400).json({ error: 'El RUC debe tener exactamente 11 dígitos numéricos.' });
             }
         }
 
         if (telefono !== undefined && telefono !== null && String(telefono).trim() !== '') {
-            const telLimpio = String(telefono).trim();
-            if (!/^\d{9}$/.test(telLimpio)) {
+            if (!/^\d{9}$/.test(String(telefono).trim())) {
                 return res.status(400).json({ error: 'El teléfono debe tener exactamente 9 dígitos numéricos.' });
             }
         }
@@ -181,17 +185,37 @@ exports.actualizarTienda = async (req, res) => {
 
         await tienda.update(datosActualizacion);
 
-        const tiendaActualizada = await Tienda.findByPk(tienda.id, {
-            include: [{ model: Tendero, as: 'tendero', attributes: ['id', 'dni', 'nombres', 'apellidos', 'telefono'] }]
-        });
+        const tiendaActualizada = await Tienda.findByPk(tienda.id, { include: INCLUDE_TENDERO_COMPLETO });
 
-        res.status(200).json({
-            msg: 'Tienda actualizada exitosamente',
-            tienda: tiendaActualizada
-        });
+        res.status(200).json({ msg: 'Tienda actualizada exitosamente', tienda: tiendaActualizada });
     } catch (error) {
         console.error('Error al actualizar tienda:', error);
         res.status(500).json({ error: 'Error interno al actualizar la tienda.' });
+    }
+};
+
+// 2.0 SUBIR LOGO DE LA TIENDA
+// PATCH /api/tiendas/:id/logo  (campo multipart: "foto")
+exports.subirLogo = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se recibió ninguna imagen.' });
+        }
+
+        const tienda = await buscarTiendaPermitida(req, req.params.id);
+        if (!tienda) {
+            return res.status(404).json({ error: 'Tienda no encontrada o no tienes permisos.' });
+        }
+
+        const url = await subirImagen(req.file, 'fiamas_app/tiendas');
+        await tienda.update({ imagen_url: url, actualizado_en: new Date() });
+
+        const tiendaActualizada = await Tienda.findByPk(tienda.id, { include: INCLUDE_TENDERO_COMPLETO });
+
+        res.status(200).json({ msg: 'Logo actualizado', tienda: tiendaActualizada });
+    } catch (error) {
+        console.error('Error al subir logo:', error);
+        res.status(500).json({ error: 'Error interno al subir el logo.' });
     }
 };
 
@@ -212,67 +236,68 @@ exports.toggleActivoTienda = async (req, res) => {
     }
 };
 
-// 2.2 ELIMINAR TIENDA (ADMIN)
+// 2.2 ELIMINAR TIENDA
+// - Admin: borrado permanente en cascada.
+// - Tendero: también borrado permanente (BORRADO_REAL_PARA_TENDERO = true).
+//   Pon BORRADO_REAL_PARA_TENDERO = false para que el tendero solo
+//   desactive la tienda (soft delete) y se conserven sus datos.
+const BORRADO_REAL_PARA_TENDERO = true;
+
 exports.eliminarTiendaAdmin = async (req, res) => {
-    const t = await sequelize.transaction();
+    let t;
     try {
         const { id } = req.params;
-        const tienda = await Tienda.findByPk(id);
+        const esAdmin = req.usuario.rol === 'admin';
+
+        const tienda = await buscarTiendaPermitida(req, id);
         if (!tienda) {
-            await t.rollback();
-            return res.status(404).json({ error: 'Tienda no encontrada.' });
+            return res.status(404).json({ error: 'Tienda no encontrada o no tienes permisos.' });
         }
 
-        if (req.usuario && req.usuario.rol === 'tendero' && tienda.tendero_id !== req.usuario.id) {
-            await t.rollback();
-            return res.status(403).json({ error: 'No tienes permiso para eliminar esta tienda.' });
+        if (!esAdmin && !BORRADO_REAL_PARA_TENDERO) {
+            await tienda.update({ activo: false, actualizado_en: new Date() });
+            return res.status(200).json({ msg: 'Tienda eliminada exitosamente', id });
         }
+
+        t = await sequelize.transaction();
 
         const fiados = await Fiado.findAll({ where: { tienda_id: id }, attributes: ['id'], transaction: t });
         const fiadosIds = fiados.map(f => f.id);
 
+        // Secuencial: varias consultas en paralelo sobre la misma transacción
+        // se encolan igual y dificultan depurar errores.
         if (fiadosIds.length > 0) {
-            await Promise.all([
-                FiadoDetalle.destroy({ where: { fiado_id: { [Op.in]: fiadosIds } }, transaction: t }),
-                Pago.destroy({ where: { fiado_id: { [Op.in]: fiadosIds } }, transaction: t })
-            ]);
+            await FiadoDetalle.destroy({ where: { fiado_id: { [Op.in]: fiadosIds } }, transaction: t });
+            await Pago.destroy({ where: { fiado_id: { [Op.in]: fiadosIds } }, transaction: t });
         }
-        await Promise.all([
-            Pago.destroy({ where: { tienda_id: id }, transaction: t }),
-            Fiado.destroy({ where: { tienda_id: id }, transaction: t }),
-            Alerta.destroy({ where: { tienda_id: id }, transaction: t }),
-            ScoringHistorial.destroy({ where: { tienda_id: id }, transaction: t }),
-            LogSistema.destroy({ where: { tienda_id: id }, transaction: t }),
-            ClienteTienda.destroy({ where: { tienda_id: id }, transaction: t }),
-            Producto.destroy({ where: { tienda_id: id }, transaction: t }),
-            Categoria.destroy({ where: { tienda_id: id }, transaction: t })
-        ]);
+        await Pago.destroy({ where: { tienda_id: id }, transaction: t });
+        await Fiado.destroy({ where: { tienda_id: id }, transaction: t });
+        await Alerta.destroy({ where: { tienda_id: id }, transaction: t });
+        await ScoringHistorial.destroy({ where: { tienda_id: id }, transaction: t });
+        await LogSistema.destroy({ where: { tienda_id: id }, transaction: t });
+        await ClienteTienda.destroy({ where: { tienda_id: id }, transaction: t });
+        await Producto.destroy({ where: { tienda_id: id }, transaction: t });
+        await Categoria.destroy({ where: { tienda_id: id }, transaction: t });
         await tienda.destroy({ transaction: t });
+
         await t.commit();
 
         res.status(200).json({ msg: 'Tienda eliminada exitosamente', id });
     } catch (error) {
-        await t.rollback();
+        if (t) await t.rollback();
         console.error('Error al eliminar tienda:', error);
         res.status(500).json({ error: 'Error interno al eliminar la tienda.' });
     }
 };
 
 // 3. GENERAR/REGENERAR CÓDIGO QR
+// POST /api/tiendas/generar-qr/:id
 exports.generarQR = async (req, res) => {
     try {
-        const esAdmin = req.usuario.rol === 'admin';
         const tiendaId = req.params.id || req.body.id;
-        let tienda;
+        if (!tiendaId) return res.status(400).json({ error: 'ID de la tienda requerido.' });
 
-        if (esAdmin) {
-            if (!tiendaId) return res.status(400).json({ error: 'ID de la tienda requerido.' });
-            tienda = await Tienda.findByPk(tiendaId);
-        } else {
-            const tenderoId = req.usuario.id;
-            tienda = await Tienda.findOne({ where: { tendero_id: tenderoId, activo: true } });
-        }
-
+        const tienda = await buscarTiendaPermitida(req, tiendaId);
         if (!tienda) return res.status(404).json({ error: 'No se encontró la tienda especificada.' });
 
         const nuevoToken = crypto.randomUUID();
@@ -289,21 +314,14 @@ exports.generarQR = async (req, res) => {
 };
 
 // 4. ACTIVAR/DESACTIVAR CÓDIGO QR
+// PUT /api/tiendas/toggle-qr/:id
 exports.toggleQR = async (req, res) => {
     try {
-        const esAdmin = req.usuario.rol === 'admin';
         const tiendaId = req.params.id || req.body.id;
         const { activo } = req.body;
-        let tienda;
+        if (!tiendaId) return res.status(400).json({ error: 'ID de la tienda requerido.' });
 
-        if (esAdmin) {
-            if (!tiendaId) return res.status(400).json({ error: 'ID de la tienda requerido.' });
-            tienda = await Tienda.findByPk(tiendaId);
-        } else {
-            const tenderoId = req.usuario.id;
-            tienda = await Tienda.findOne({ where: { tendero_id: tenderoId, activo: true } });
-        }
-
+        const tienda = await buscarTiendaPermitida(req, tiendaId);
         if (!tienda) return res.status(404).json({ error: 'No se encontró la tienda especificada.' });
 
         const nuevoEstadoQR = activo !== undefined ? Boolean(activo) : !tienda.qr_activo;
@@ -317,31 +335,55 @@ exports.toggleQR = async (req, res) => {
 };
 
 // 5. OBTENER RESUMEN DE LA TIENDA (Dashboard)
+// GET /api/tiendas/resumen?tienda_id=xxx
 exports.getResumenTienda = async (req, res) => {
     try {
-        const tenderoId = req.usuario.id;
-        const tienda = await Tienda.findOne({ where: { tendero_id: tenderoId, activo: true } });
-        if (!tienda) return res.status(404).json({ error: 'No se encontró una tienda activa para este tendero.' });
+        const tienda = await buscarTiendaPermitida(req, req.query.tienda_id);
+        if (!tienda) {
+            return res.status(404).json({ error: 'Tienda no encontrada o no tienes permisos.' });
+        }
 
-        const totalProductos = await Producto.count({ where: { tienda_id: tienda.id, activo: true } });
-        const productosStockBajo = await Producto.count({
-            where: {
-                tienda_id: tienda.id, activo: true, stock_actual: { [Op.ne]: null }, stock_minimo: { [Op.ne]: null },
-                [Op.and]: [sequelize.where(sequelize.col('stock_actual'), { [Op.lte]: sequelize.col('stock_minimo') })]
-            }
-        });
-        const totalCategorias = await Categoria.count({ where: { tienda_id: tienda.id, activo: true } });
-        const totalClientes = await ClienteTienda.count({ where: { tienda_id: tienda.id, activo: true } });
-        const fiadosPendientes = await Fiado.count({ where: { tienda_id: tienda.id, estado: { [Op.in]: ['pendiente', 'parcial'] } } });
-        const fiadosMonto = await Fiado.sum('monto_total', { where: { tienda_id: tienda.id, estado: { [Op.in]: ['pendiente', 'parcial'] } } });
-        const alertasPendientes = await Alerta.count({ where: { tienda_id: tienda.id, estado: 'pendiente' } });
+        const tiendaId = tienda.id;
+        const estadosPendientes = { [Op.in]: ['pendiente', 'parcial'] };
+
+        const [
+            totalProductos,
+            productosStockBajo,
+            totalCategorias,
+            totalClientes,
+            fiadosPendientes,
+            fiadosMonto,
+            alertasPendientes
+        ] = await Promise.all([
+            Producto.count({ where: { tienda_id: tiendaId, activo: true } }),
+            Producto.count({
+                where: {
+                    tienda_id: tiendaId,
+                    activo: true,
+                    stock_actual: { [Op.ne]: null },
+                    stock_minimo: { [Op.ne]: null },
+                    [Op.and]: [sequelize.where(sequelize.col('stock_actual'), { [Op.lte]: sequelize.col('stock_minimo') })]
+                }
+            }),
+            Categoria.count({ where: { tienda_id: tiendaId, activo: true } }),
+            ClienteTienda.count({ where: { tienda_id: tiendaId, activo: true } }),
+            Fiado.count({ where: { tienda_id: tiendaId, estado: estadosPendientes } }),
+            Fiado.sum('monto_total', { where: { tienda_id: tiendaId, estado: estadosPendientes } }),
+            Alerta.count({ where: { tienda_id: tiendaId, estado: 'pendiente' } })
+        ]);
 
         res.status(200).json({
             msg: 'Resumen de la tienda',
             resumen: {
-                tienda_id: tienda.id, tienda_nombre: tienda.nombre, total_productos: totalProductos,
-                productos_stock_bajo: productosStockBajo, total_categorias: totalCategorias, total_clientes: totalClientes,
-                fiados_pendientes: fiadosPendientes, monto_por_cobrar: Number(fiadosMonto) || 0, alertas_pendientes: alertasPendientes
+                tienda_id: tiendaId,
+                tienda_nombre: tienda.nombre,
+                total_productos: totalProductos,
+                productos_stock_bajo: productosStockBajo,
+                total_categorias: totalCategorias,
+                total_clientes: totalClientes,
+                fiados_pendientes: fiadosPendientes,
+                monto_por_cobrar: Number(fiadosMonto) || 0,
+                alertas_pendientes: alertasPendientes
             }
         });
     } catch (error) {
