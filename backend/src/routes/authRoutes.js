@@ -1,8 +1,15 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const { verificarToken } = require('../middleware/authMiddleware');
 
+// Límite para endpoints públicos de cliente (evita consultas masivas de teléfonos)
+const clientePublicoLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    message: { error: 'Demasiados intentos, espera un momento.' }
+});
 
 // Rutas Públicas de Autenticación
 
@@ -18,11 +25,15 @@ router.post('/register/admin', authController.registerAdmin);
 // POST /api/auth/register/tendero
 router.post('/register/tendero', authController.registerTendero);
 
-// 4. Registro de Cliente
-// POST /api/auth/register/cliente
-router.post('/register/cliente', authController.registerCliente);
+// 4. Pre-registro de Cliente (autocompleta nombres según el teléfono)
+// GET /api/auth/register/cliente/consulta?telefono=999999999
+router.get('/register/cliente/consulta', clientePublicoLimiter, authController.consultarPreRegistro);
 
-// 5. Perfil de Administrador (Mi Cuenta / Configuración)
+// 5. Registro de Cliente (activa la cuenta creada por el tendero)
+// POST /api/auth/register/cliente
+router.post('/register/cliente', clientePublicoLimiter, authController.registerCliente);
+
+// 6. Perfil de Administrador (Mi Cuenta / Configuración)
 // GET /api/auth/perfil
 router.get('/perfil', verificarToken, authController.getPerfilAdmin);
 
