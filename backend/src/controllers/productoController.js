@@ -2,6 +2,13 @@ const { Producto, Tienda, Categoria } = require('../models');
 const cloudinary = require('../config/cloudinary'); // ✅ ESTA LÍNEA ES LA CLAVE
 const { Op } = require('sequelize');
 
+const normalizarActivo = (valor) => {
+    if (valor === undefined) return undefined;
+    if (valor === true || valor === 'true' || valor === 1 || valor === '1') return true;
+    if (valor === false || valor === 'false' || valor === 0 || valor === '0') return false;
+    return null;
+};
+
 // ══════════════════════════════════════════════════════════════════════════
 // 1. CREAR PRODUCTO CON IMAGEN
 // ══════════════════════════════════════════════════════════════════════════
@@ -10,6 +17,11 @@ exports.crearProducto = async (req, res) => {
         const usuarioId = req.usuario.id;
         const esAdmin = req.usuario.rol === 'admin';
         const { nombre, descripcion, tienda_id, categoria_id, codigo_barras, tipo_venta, unidad_medida, precio_venta, activo } = req.body;
+
+        const activoNormalizado = normalizarActivo(activo);
+        if (activoNormalizado === null) {
+            return res.status(400).json({ error: 'El campo activo debe ser true o false.' });
+        }
 
         if (!nombre || !tienda_id || !categoria_id || precio_venta === undefined) {
             return res.status(400).json({ error: 'El nombre, tienda_id, categoria_id y precio_venta son obligatorios.' });
@@ -49,7 +61,7 @@ exports.crearProducto = async (req, res) => {
             tipo_venta: tipo_venta || 'unidad',
             unidad_medida: unidad_medida || 'unidad',
             precio_venta: parseFloat(precio_venta),
-            activo: activo !== undefined ? Boolean(activo) : true,
+            ...(activoNormalizado !== undefined ? { activo: activoNormalizado } : {}),
             imagen_url: imagen_url
         });
 
@@ -145,6 +157,11 @@ exports.actualizarProducto = async (req, res) => {
         const productoId = req.params.id;
         const { nombre, descripcion, categoria_id, codigo_barras, tipo_venta, unidad_medida, precio_venta, activo } = req.body;
 
+        const activoNormalizado = normalizarActivo(activo);
+        if (activoNormalizado === null) {
+            return res.status(400).json({ error: 'El campo activo debe ser true o false.' });
+        }
+
         const producto = await Producto.findByPk(productoId);
         if (!producto) {
             return res.status(404).json({ error: 'Producto no encontrado.' });
@@ -172,7 +189,7 @@ exports.actualizarProducto = async (req, res) => {
         if (tipo_venta !== undefined) datosActualizacion.tipo_venta = tipo_venta;
         if (unidad_medida !== undefined) datosActualizacion.unidad_medida = unidad_medida;
         if (precio_venta !== undefined) datosActualizacion.precio_venta = parseFloat(precio_venta);
-        if (activo !== undefined) datosActualizacion.activo = Boolean(activo);
+        if (activoNormalizado !== undefined) datosActualizacion.activo = activoNormalizado;
 
         // ✅ LÓGICA DE ACTUALIZACIÓN DE IMAGEN
         if (req.file) {
