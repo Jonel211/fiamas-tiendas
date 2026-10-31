@@ -37,6 +37,9 @@ router.patch(
     tiendaController.subirLogo
 );
 
+// 7.2 MOVIMIENTOS RECIENTES PARA EL DASHBOARD
+router.get('/movimientos-recientes', verificarToken, verificarRol(['tendero']), tiendaController.obtenerMovimientosRecientes);
+
 // 8. ACTUALIZAR TIENDA - debe ir DESPUÉS de las rutas específicas
 router.put('/:id?', verificarToken, verificarRol(['admin', 'tendero']), tiendaController.actualizarTienda);
 
