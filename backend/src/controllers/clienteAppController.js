@@ -82,6 +82,7 @@ exports.miPerfil = async (req, res) => {
 
 // 2. ACTUALIZAR PERFIL DEL CLIENTE
 // PUT /api/app-cliente/mi-perfil
+// Nota: nombres y apellidos los define el tendero y no se editan desde aquí.
 // ═══════════════════════════════════════════════════════════════════════════
 exports.actualizarMiPerfil = async (req, res) => {
     try {
@@ -244,8 +245,8 @@ exports.misFiados = async (req, res) => {
                 {
                     model: Pago,
                     as: 'pagos',
-                    // ✅ CORREGIDO: Se eliminó 'metodo_pago' porque no existe en la BD
                     attributes: ['id', 'monto', 'fecha_pago', 'notas'],
+                    separate: true,
                     order: [['fecha_pago', 'DESC']]
                 }
             ],
@@ -271,7 +272,7 @@ exports.misFiados = async (req, res) => {
                 id: pago.id,
                 monto: pago.monto,
                 fecha_pago: pago.fecha_pago,
-                notas: pago.notas || null // ✅ CORREGIDO: Se eliminó 'metodo_pago'
+                notas: pago.notas || null 
             }))
         }));
 
@@ -421,7 +422,6 @@ exports.misPagos = async (req, res) => {
             id: pago.id,
             monto: pago.monto,
             fecha_pago: pago.fecha_pago,
-            // ✅ CORREGIDO: Se eliminó 'metodo_pago'
             referencia: pago.referencia,
             notas: pago.notas,
             fiado: {
