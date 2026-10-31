@@ -65,9 +65,17 @@ exports.crearProducto = async (req, res) => {
             imagen_url: imagen_url
         });
 
+        const productoCreado = await Producto.findByPk(nuevoProducto.id, {
+            include: [{
+                model: Categoria,
+                as: 'categoria',
+                attributes: ['id', 'nombre', 'icono', 'color']
+            }]
+        });
+
         res.status(201).json({
             msg: 'Producto creado exitosamente.',
-            producto: nuevoProducto
+            producto: productoCreado
         });
     } catch (error) {
         console.error('Error al crear producto:', error);
