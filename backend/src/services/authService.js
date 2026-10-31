@@ -277,28 +277,24 @@ const registrarCliente = async ({ telefono: telefonoRaw, password }) => {
 };
 
 const restablecerPassword = async ({ identificador, nuevaPassword }) => {
-    const { Tendero, Cliente } = require('../models'); 
+    const { Tendero, Cliente } = require('../models');
     const { Op } = require('sequelize');
-    const bcrypt = require('bcrypt'); // O la librería que uses para hashear
 
-    // 1. Buscar si es un Tendero
+    // 1. Buscar primero en Tendero (usuario principal de la app)
     let usuario = await Tendero.findOne({
         where: {
             [Op.or]: [
                 { telefono: identificador },
-                { email: identificador } // Si usas email como identificador
+                { dni: identificador } // Por si acaso el identificador es DNI
             ]
         }
     });
 
-    // 2. Si no es Tendero, buscar si es Cliente
+    // 2. Si no es Tendero, buscar en Cliente
     if (!usuario) {
         usuario = await Cliente.findOne({
             where: {
-                [Op.or]: [
-                    { telefono: identificador },
-                    { email: identificador }
-                ]
+                telefono: identificador
             }
         });
     }
@@ -310,10 +306,12 @@ const restablecerPassword = async ({ identificador, nuevaPassword }) => {
         throw error;
     }
 
-    // 4. Hashear la nueva contraseña y guardarla
-    const salt = await bcrypt.genSalt(10);
-    usuario.password_hash = await bcrypt.hash(nuevaPassword, salt);
-    
+    // 4. Actualizar la contraseña.
+    // ¡MAGIA DE SEQUELIZE! Gracias a tu hook 'beforeUpdate' en el modelo,
+    // al asignar el texto plano aquí, Sequelize lo hasheará automáticamente 
+    // con bcrypt antes de guardarlo en la base de datos.
+    usuario.password_hash = nuevaPassword;
+
     await usuario.save();
 
     return { msg: 'Contraseña actualizada correctamente' };
