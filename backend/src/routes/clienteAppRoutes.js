@@ -2,15 +2,18 @@ const express = require('express');
 const router = express.Router();
 const clienteAppController = require('../controllers/clienteAppController');
 const { verificarToken, verificarRol } = require('../middleware/authMiddleware');
+const upload = require('../middleware/upload');
 
-// ═══════════════════════════════════════════════════════════════════════════
 // RUTAS PARA LA APP DEL CLIENTE
 // Todas requieren rol 'cliente'
-// ══════════════════════════════════════════════════════════════════════════
 
 // 1. PERFIL
 router.get('/mi-perfil', verificarToken, verificarRol(['cliente']), clienteAppController.miPerfil);
 router.put('/mi-perfil', verificarToken, verificarRol(['cliente']), clienteAppController.actualizarMiPerfil);
+// Ruta para subir/actualizar la foto de perfil (Campo 'foto', máx 5MB)
+router.patch('/mi-perfil/foto', verificarToken, verificarRol(['cliente']), upload.imagen('foto'), clienteAppController.actualizarFotoPerfil);
+// Ruta para cambiar contraseña o PIN del cliente
+router.put('/cambiar-password', verificarToken, verificarRol(['cliente']), clienteAppController.cambiarPassword);
 
 // 2. TIENDAS
 router.get('/mis-tiendas', verificarToken, verificarRol(['cliente']), clienteAppController.misTiendas);

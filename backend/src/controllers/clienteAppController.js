@@ -1,10 +1,63 @@
 const { Cliente, ClienteTienda, Tienda, Fiado, FiadoDetalle, Pago, Producto, sequelize } = require('../models');
-const { Op } = require('sequelize');
+const cloudinary = require('../config/cloudinary');
 
-// ═══════════════════════════════════════════════════════════════════════════
+// ACTUALIZAR FOTO DE PERFIL DEL CLIENTE
+// PATCH /api/app-cliente/mi-perfil/foto
+exports.actualizarFotoPerfil = async (req, res) => {
+    try {
+        const clienteId = req.usuario.id;
+
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se envió ningún archivo de imagen.' });
+        }
+
+        const cliente = await Cliente.findByPk(clienteId);
+        if (!cliente) {
+            return res.status(404).json({ error: 'Cliente no encontrado.' });
+        }
+
+        // Subir buffer directamente a Cloudinary
+        const uploadToCloudinary = (buffer) => {
+            return new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    { folder: 'clientes/perfiles' },
+                    (error, result) => {
+                        if (result) resolve(result);
+                        else reject(error);
+                    }
+                );
+                stream.end(buffer);
+            });
+        };
+
+        const result = await uploadToCloudinary(req.file.buffer);
+        const fotoUrl = result.secure_url;
+
+        // Actualizar la URL en la BD
+        await cliente.update({
+            foto_perfil_url: fotoUrl,
+            actualizado_en: new Date()
+        });
+
+        res.status(200).json({
+            msg: 'Foto de perfil actualizada exitosamente.',
+            foto_perfil_url: fotoUrl,
+            cliente: {
+                id: cliente.id,
+                nombres: cliente.nombres,
+                apellidos: cliente.apellidos,
+                foto_perfil_url: fotoUrl
+            }
+        });
+    } catch (error) {
+        console.error('Error al subir foto de perfil:', error);
+        res.status(500).json({ error: 'Error interno al procesar la foto de perfil.' });
+    }
+};
+
+
 // 1. PERFIL DEL CLIENTE
 // GET /api/app-cliente/mi-perfil
-// ═══════════════════════════════════════════════════════════════════════════
 exports.miPerfil = async (req, res) => {
     try {
         const clienteId = req.usuario.id;
@@ -27,10 +80,8 @@ exports.miPerfil = async (req, res) => {
     }
 };
 
-// ═══════════════════════════════════════════════════════════════════════════
 // 2. ACTUALIZAR PERFIL DEL CLIENTE
 // PUT /api/app-cliente/mi-perfil
-// ═══════════════════════════════════════════════════════════════════════════
 exports.actualizarMiPerfil = async (req, res) => {
     try {
         const clienteId = req.usuario.id;
@@ -67,6 +118,43 @@ exports.actualizarMiPerfil = async (req, res) => {
         res.status(500).json({ error: 'Error interno al actualizar el perfil.' });
     }
 };
+
+// CAMBIAR CONTRASEÑA / PIN DEL CLIENTE
+// PUT /api/app-cliente/cambiar-password
+exports.cambiarPassword = async (req, res) => {
+    try {
+        const clienteId = req.usuario.id;
+        const { currentPassword, newPassword } = req.body;
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: 'Debes proporcionar la contraseña actual y la nueva.' });
+        }
+
+        const cliente = await Cliente.findByPk(clienteId);
+        if (!cliente) {
+            return res.status(404).json({ error: 'Cliente no encontrado.' });
+        }
+
+        // Validar contraseña actual
+        const esValida = await cliente.validarPassword(currentPassword);
+        if (!esValida) {
+            return res.status(400).json({ error: 'La contraseña o PIN actual es incorrecto.' });
+        }
+
+        // Asignar y guardar la nueva contraseña/PIN (el hook del modelo encrypta con bcrypt)
+        cliente.password_hash = newPassword;
+        cliente.actualizado_en = new Date();
+        await cliente.save();
+
+        res.status(200).json({
+            msg: 'Contraseña/PIN actualizado exitosamente.'
+        });
+    } catch (error) {
+        console.error('Error al cambiar contraseña:', error);
+        res.status(500).json({ error: 'Error interno al actualizar la contraseña.' });
+    }
+};
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 3. MIS TIENDAS VINCULADAS
