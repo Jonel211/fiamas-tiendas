@@ -1,6 +1,7 @@
 const { Producto, Tienda, Categoria } = require('../models');
 const cloudinary = require('../config/cloudinary'); // ✅ ESTA LÍNEA ES LA CLAVE
 const { Op } = require('sequelize');
+const ERROR_CODIGO_BARRAS_DUPLICADO = 'Ya existe un producto con ese código de barras.';
 
 const normalizarActivo = (valor) => {
     if (valor === undefined) return undefined;
@@ -17,6 +18,7 @@ exports.crearProducto = async (req, res) => {
         const usuarioId = req.usuario.id;
         const esAdmin = req.usuario.rol === 'admin';
         const { nombre, descripcion, tienda_id, categoria_id, codigo_barras, tipo_venta, unidad_medida, precio_venta, activo } = req.body;
+        const codigoBarras = typeof codigo_barras === 'string' ? (codigo_barras.trim() || null) : codigo_barras;
 
         const activoNormalizado = normalizarActivo(activo);
         if (activoNormalizado === null) {
@@ -39,6 +41,13 @@ exports.crearProducto = async (req, res) => {
             return res.status(400).json({ error: 'La categoría no existe o no pertenece a esta tienda.' });
         }
 
+        if (codigoBarras) {
+            const productoExistente = await Producto.findOne({ where: { codigo_barras: codigoBarras, tienda_id } });
+            if (productoExistente) {
+                return res.status(409).json({ error: ERROR_CODIGO_BARRAS_DUPLICADO });
+            }
+        }
+
         // ✅ LÓGICA DE SUBIDA A CLOUDINARY
         let imagen_url = null;
         if (req.file) {
@@ -57,7 +66,7 @@ exports.crearProducto = async (req, res) => {
             descripcion: descripcion ? descripcion.trim() : null,
             tienda_id,
             categoria_id,
-            codigo_barras: codigo_barras || null,
+            codigo_barras: codigoBarras ?? null,
             tipo_venta: tipo_venta || 'unidad',
             unidad_medida: unidad_medida || 'unidad',
             precio_venta: parseFloat(precio_venta),
@@ -79,7 +88,10 @@ exports.crearProducto = async (req, res) => {
         });
     } catch (error) {
         console.error('Error al crear producto:', error);
-        res.status(500).json({ error: 'Error interno al crear el producto.', detalle: error.message });
+        if (error.name === 'SequelizeUniqueConstraintError') {
+            return res.status(409).json({ error: ERROR_CODIGO_BARRAS_DUPLICADO });
+        }
+        res.status(500).json({ error: 'Error interno al crear el producto.' });
     }
 };
 
@@ -164,6 +176,7 @@ exports.actualizarProducto = async (req, res) => {
         const esAdmin = req.usuario.rol === 'admin';
         const productoId = req.params.id;
         const { nombre, descripcion, categoria_id, codigo_barras, tipo_venta, unidad_medida, precio_venta, activo } = req.body;
+        const codigoBarras = typeof codigo_barras === 'string' ? (codigo_barras.trim() || null) : codigo_barras;
 
         const activoNormalizado = normalizarActivo(activo);
         if (activoNormalizado === null) {
@@ -189,11 +202,24 @@ exports.actualizarProducto = async (req, res) => {
             }
         }
 
+        if (codigoBarras) {
+            const productoExistente = await Producto.findOne({
+                where: {
+                    codigo_barras: codigoBarras,
+                    tienda_id: producto.tienda_id,
+                    id: { [Op.ne]: productoId }
+                }
+            });
+            if (productoExistente) {
+                return res.status(409).json({ error: ERROR_CODIGO_BARRAS_DUPLICADO });
+            }
+        }
+
         const datosActualizacion = {};
         if (nombre !== undefined) datosActualizacion.nombre = nombre.trim();
         if (descripcion !== undefined) datosActualizacion.descripcion = descripcion ? descripcion.trim() : null;
         if (categoria_id !== undefined) datosActualizacion.categoria_id = categoria_id;
-        if (codigo_barras !== undefined) datosActualizacion.codigo_barras = codigo_barras;
+        if (codigo_barras !== undefined) datosActualizacion.codigo_barras = codigoBarras;
         if (tipo_venta !== undefined) datosActualizacion.tipo_venta = tipo_venta;
         if (unidad_medida !== undefined) datosActualizacion.unidad_medida = unidad_medida;
         if (precio_venta !== undefined) datosActualizacion.precio_venta = parseFloat(precio_venta);
@@ -227,6 +253,9 @@ exports.actualizarProducto = async (req, res) => {
         });
     } catch (error) {
         console.error('Error al actualizar producto:', error);
+        if (error.name === 'SequelizeUniqueConstraintError') {
+            return res.status(409).json({ error: ERROR_CODIGO_BARRAS_DUPLICADO });
+        }
         res.status(500).json({ error: 'Error interno al actualizar el producto.' });
     }
 };
