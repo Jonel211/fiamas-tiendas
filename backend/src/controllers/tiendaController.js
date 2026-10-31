@@ -346,6 +346,10 @@ exports.getResumenTienda = async (req, res) => {
         const tiendaId = tienda.id;
         const estadosPendientes = { [Op.in]: ['pendiente', 'parcial'] };
 
+        // Calcular la fecha de inicio del mes actual
+        const ahora = new Date();
+        const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+
         const [
             totalProductos,
             productosStockBajo,
@@ -353,7 +357,8 @@ exports.getResumenTienda = async (req, res) => {
             totalClientes,
             fiadosPendientes,
             fiadosMonto,
-            alertasPendientes
+            alertasPendientes,
+            cobradoEsteMes // NUEVO
         ] = await Promise.all([
             Producto.count({ where: { tienda_id: tiendaId, activo: true } }),
             Producto.count({
@@ -369,7 +374,14 @@ exports.getResumenTienda = async (req, res) => {
             ClienteTienda.count({ where: { tienda_id: tiendaId, activo: true } }),
             Fiado.count({ where: { tienda_id: tiendaId, estado: estadosPendientes } }),
             Fiado.sum('monto_total', { where: { tienda_id: tiendaId, estado: estadosPendientes } }),
-            Alerta.count({ where: { tienda_id: tiendaId, estado: 'pendiente' } })
+            Alerta.count({ where: { tienda_id: tiendaId, estado: 'pendiente' } }),
+            // NUEVO: Sumar los pagos del mes actual
+            Pago.sum('monto', { 
+                where: { 
+                    tienda_id: tiendaId, 
+                    fecha_pago: { [Op.gte]: inicioMes } 
+                } 
+            })
         ]);
 
         res.status(200).json({
@@ -383,7 +395,8 @@ exports.getResumenTienda = async (req, res) => {
                 total_clientes: totalClientes,
                 fiados_pendientes: fiadosPendientes,
                 monto_por_cobrar: Number(fiadosMonto) || 0,
-                alertas_pendientes: alertasPendientes
+                alertas_pendientes: alertasPendientes,
+                cobrado_este_mes: Number(cobradoEsteMes) || 0 // NUEVO
             }
         });
     } catch (error) {
