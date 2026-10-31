@@ -1,8 +1,20 @@
 const { Op } = require('sequelize');
 const { Alerta, Tienda, Tendero, sequelize } = require('../models');
 
+// Asegurar existencia de columna eliminada_por en base de datos
+let columnaVerificada = false;
+async function asegurarColumnaEliminadaPor() {
+    if (columnaVerificada) return;
+    try {
+        await sequelize.query('ALTER TABLE alertas ADD COLUMN IF NOT EXISTS eliminada_por UUID[] DEFAULT \'{}\';');
+        columnaVerificada = true;
+    } catch (_) {}
+}
+
 // Qué alertas le corresponden a este tendero
 async function filtroTendero(tenderoId) {
+    await asegurarColumnaEliminadaPor();
+
     const tendero = await Tendero.findByPk(tenderoId, { attributes: ['id', 'creado_en', 'activo'] });
     if (!tendero || tendero.activo === false) return null;
 
@@ -40,7 +52,13 @@ async function obtener(tenderoId, limit = 100) {
         limit
     });
 
-    return alertas.map(a => {
+    // Excluir aquellas que el tendero haya eliminado
+    const visibles = alertas.filter(a => {
+        const eliminadas = Array.isArray(a.eliminada_por) ? a.eliminada_por : [];
+        return !eliminadas.includes(tenderoId);
+    });
+
+    return visibles.map(a => {
         let leida = false;
         if (a.destinatario_tipo === 'todos') {
             const leidaPor = Array.isArray(a.leida_por) ? a.leida_por : [];
@@ -138,29 +156,59 @@ exports.marcarTodas = async (req, res) => {
     }
 };
 
-// PATCH /api/notificaciones/limpiar-todas
+// DELETE /api/notificaciones/limpiar
 exports.limpiarTodas = async (req, res) => {
     try {
         const tenderoId = req.usuario.id;
         const where = await filtroTendero(tenderoId);
         if (!where) return res.status(404).json({ error: 'Tendero no encontrado o inactivo.' });
 
-        const alertas = await Alerta.findAll({ where, attributes: ['id', 'destinatario_tipo', 'estado', 'leida_por'] });
+        const alertas = await Alerta.findAll({ where, attributes: ['id', 'destinatario_tipo', 'estado', 'leida_por', 'eliminada_por'] });
 
         for (const alerta of alertas) {
+            const eliminadas = Array.isArray(alerta.eliminada_por) ? [...alerta.eliminada_por] : [];
+            if (!eliminadas.includes(tenderoId)) {
+                eliminadas.push(tenderoId);
+            }
+
             if (alerta.destinatario_tipo === 'todos') {
                 const leidaPor = Array.isArray(alerta.leida_por) ? [...alerta.leida_por] : [];
-                if (!leidaPor.includes(tenderoId)) {
-                    leidaPor.push(tenderoId);
-                    await alerta.update({ leida_por: leidaPor });
-                }
+                if (!leidaPor.includes(tenderoId)) leidaPor.push(tenderoId);
+                await alerta.update({ eliminada_por: eliminadas, leida_por: leidaPor });
             } else {
-                await alerta.update({ estado: 'cerrada' });
+                await alerta.update({ estado: 'cerrada', eliminada_por: eliminadas });
             }
         }
         res.sendStatus(204);
     } catch (e) {
         console.error('Error al limpiar todas:', e);
         res.status(500).json({ error: 'Error interno al limpiar notificaciones.' });
+    }
+};
+
+// DELETE /api/notificaciones/:id
+exports.eliminarUna = async (req, res) => {
+    try {
+        const tenderoId = req.usuario.id;
+        const where = await filtroTendero(tenderoId);
+        if (!where) return res.status(404).json({ error: 'Tendero no encontrado o inactivo.' });
+
+        const alerta = await Alerta.findOne({ where: { [Op.and]: [where, { id: req.params.id }] } });
+        if (!alerta) return res.status(404).json({ error: 'Notificación no encontrada.' });
+
+        const eliminadas = Array.isArray(alerta.eliminada_por) ? [...alerta.eliminada_por] : [];
+        if (!eliminadas.includes(tenderoId)) {
+            eliminadas.push(tenderoId);
+        }
+
+        if (alerta.destinatario_tipo === 'todos') {
+            await alerta.update({ eliminada_por: eliminadas });
+        } else {
+            await alerta.update({ estado: 'cerrada', eliminada_por: eliminadas });
+        }
+        res.sendStatus(204);
+    } catch (e) {
+        console.error('Error al eliminar notificación:', e);
+        res.status(500).json({ error: 'Error interno al eliminar la notificación.' });
     }
 };

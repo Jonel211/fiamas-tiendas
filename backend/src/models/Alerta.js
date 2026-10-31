@@ -86,7 +86,14 @@ const Alerta = sequelize.define('Alerta', {
         type: DataTypes.ARRAY(DataTypes.UUID),
         allowNull: false,
         defaultValue: [],
-        comment: 'IDs de tenderos que ya leyeron este aviso (destinatario_tipo = todos'
+        comment: 'IDs de tenderos que ya leyeron este aviso (destinatario_tipo = todos)'
+    },
+
+    eliminada_por: {
+        type: DataTypes.ARRAY(DataTypes.UUID),
+        allowNull: false,
+        defaultValue: [],
+        comment: 'IDs de tenderos que eliminaron/descartaron este aviso'
     },
 
     fecha_creacion: {
