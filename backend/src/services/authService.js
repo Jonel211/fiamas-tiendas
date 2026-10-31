@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
-const { Administrador, Tendero, Cliente, Tienda, sequelize } = require('../models');
+const { Administrador, Tendero, Cliente, ClienteTienda, Tienda, sequelize } = require('../models');
 
 // Sin valor por defecto: si falta la variable, el servidor no arranca.
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -73,7 +73,7 @@ const login = async ({ identificador, password, rolRequerido }) => {
         const cliente = await Cliente.findOne({ where: { telefono: id, activo: true } });
         if (cliente) {
             if (!cliente.password_hash) {
-                const error = new Error('El cliente aún no tiene una contraseña configurada en la aplicación.');
+                const error = new Error('Aún no activaste tu cuenta. Regístrate con tu número de celular.');
                 error.statusCode = 403;
                 throw error;
             }
@@ -195,34 +195,84 @@ const registrarTendero = async ({ dni, nombres, apellidos, password, telefono, n
     }
 };
 
-// 4. REGISTRO DE CLIENTE
-const registrarCliente = async ({ telefono, nombres, apellidos, password, direccion }) => {
-    if (!telefono || !nombres || !apellidos) {
-        const error = new Error('Teléfono, nombres y apellidos son obligatorios.');
+// 4. PRE-REGISTRO DE CLIENTE (autocompleta nombres por teléfono)
+const consultarPreRegistro = async (telefonoRaw) => {
+    const telefono = String(telefonoRaw || '').trim();
+    if (!/^\d{9}$/.test(telefono)) {
+        const error = new Error('El teléfono debe tener 9 dígitos.');
         error.statusCode = 400;
         throw error;
     }
 
-    const existente = await Cliente.findOne({ where: { telefono } });
-    if (existente) {
-        const error = new Error('Ya existe un cliente registrado con ese número de teléfono.');
-        error.statusCode = 400;
-        throw error;
-    }
-
-    const cliente = await Cliente.create({
-        telefono,
-        nombres,
-        apellidos,
-        password_hash: password || null,
-        direccion: direccion || null
+    const cliente = await Cliente.findOne({
+        where: { telefono, activo: true },
+        attributes: ['id', 'nombres', 'apellidos', 'password_hash']
     });
 
+    if (!cliente) return { encontrado: false };
+    if (cliente.password_hash) return { encontrado: false, ya_registrado: true };
+
+    const vinculos = await ClienteTienda.count({
+        where: { cliente_id: cliente.id, activo: true }
+    });
+    if (vinculos === 0) return { encontrado: false };
+
     return {
-        id: cliente.id,
-        telefono: cliente.telefono,
+        encontrado: true,
         nombres: cliente.nombres,
         apellidos: cliente.apellidos
+    };
+};
+
+// 5. REGISTRO DE CLIENTE (activa la cuenta creada por el tendero)
+const registrarCliente = async ({ telefono: telefonoRaw, password }) => {
+    const telefono = String(telefonoRaw || '').trim();
+
+    if (!/^\d{9}$/.test(telefono)) {
+        const error = new Error('El teléfono debe tener 9 dígitos.');
+        error.statusCode = 400;
+        throw error;
+    }
+    if (!password || password.length < 6) {
+        const error = new Error('La contraseña debe tener al menos 6 caracteres.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const cliente = await Cliente.findOne({ where: { telefono, activo: true } });
+
+    if (!cliente) {
+        const error = new Error('Tu tienda aún no te ha registrado. Pídele que te agregue.');
+        error.statusCode = 404;
+        throw error;
+    }
+    if (cliente.password_hash) {
+        const error = new Error('Ya tienes una cuenta. Inicia sesión.');
+        error.statusCode = 409;
+        throw error;
+    }
+
+    const vinculos = await ClienteTienda.count({
+        where: { cliente_id: cliente.id, activo: true }
+    });
+    if (vinculos === 0) {
+        const error = new Error('No estás vinculado a ninguna tienda.');
+        error.statusCode = 403;
+        throw error;
+    }
+
+    // El hook beforeUpdate del modelo Cliente hashea la contraseña al guardar
+    cliente.password_hash = password;
+    cliente.actualizado_en = new Date();
+    await cliente.save();
+
+    return {
+        cliente: {
+            id: cliente.id,
+            telefono: cliente.telefono,
+            nombres: cliente.nombres,
+            apellidos: cliente.apellidos
+        }
     };
 };
 
@@ -231,5 +281,6 @@ module.exports = {
     login,
     registrarAdministrador,
     registrarTendero,
+    consultarPreRegistro,
     registrarCliente
 };

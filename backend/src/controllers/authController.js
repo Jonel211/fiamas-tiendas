@@ -61,13 +61,27 @@ const registerTendero = async (req, res, next) => {
     }
 };
 
-// 4. REGISTRO DE CLIENTE
+// 4. PRE-REGISTRO DE CLIENTE (autocompleta nombres por teléfono)
+const consultarPreRegistro = async (req, res, next) => {
+    try {
+        const resultado = await authService.consultarPreRegistro(req.query.telefono);
+        res.status(200).json(resultado);
+    } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ error: error.message });
+        }
+        console.error('Error en pre-registro de cliente:', error);
+        res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+};
+
+// 5. REGISTRO DE CLIENTE (activa la cuenta creada por el tendero)
 const registerCliente = async (req, res, next) => {
     try {
         const resultado = await authService.registrarCliente(req.body);
 
-        res.status(201).json({
-            msg: 'Cliente registrado exitosamente. Ahora puede vincularse a una tienda.',
+        res.status(200).json({
+            msg: 'Cuenta activada exitosamente.',
             ...resultado
         });
     } catch (error) {
@@ -75,11 +89,11 @@ const registerCliente = async (req, res, next) => {
             return res.status(error.statusCode).json({ error: error.message });
         }
         console.error('Error al registrar cliente:', error);
-        res.status(500).json({ error: 'Error al registrar cliente', detalle: error.message });
+        res.status(500).json({ error: 'Error al registrar cliente' });
     }
 };
 
-// 5. OBTENER PERFIL ADMIN
+// 6. OBTENER PERFIL ADMIN
 const getPerfilAdmin = async (req, res, next) => {
     try {
         const { Administrador } = require('../models');
@@ -103,7 +117,7 @@ const getPerfilAdmin = async (req, res, next) => {
     }
 };
 
-// 6. ACTUALIZAR PERFIL ADMIN (Nombre, teléfono, email, contraseña)
+// 7. ACTUALIZAR PERFIL ADMIN (Nombre, teléfono, email, contraseña)
 const actualizarPerfilAdmin = async (req, res, next) => {
     try {
         const { Administrador } = require('../models');
@@ -164,6 +178,7 @@ module.exports = {
     login,
     registerAdmin,
     registerTendero,
+    consultarPreRegistro,
     registerCliente,
     getPerfilAdmin,
     actualizarPerfilAdmin
