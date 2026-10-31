@@ -276,11 +276,101 @@ const registrarCliente = async ({ telefono: telefonoRaw, password }) => {
     };
 };
 
+const restablecerPassword = async ({ identificador, nuevaPassword }) => {
+    // ⚠️ IMPORTANTE: Importa tus modelos reales aquí (ej: Tendero, Cliente, Usuario)
+    const { Tendero, Cliente } = require('../models'); 
+    const { Op } = require('sequelize');
+    const bcrypt = require('bcrypt'); // O la librería que uses para hashear
+
+    // 1. Buscar si es un Tendero
+    let usuario = await Tendero.findOne({
+        where: {
+            [Op.or]: [
+                { telefono: identificador },
+                { email: identificador } // Si usas email como identificador
+            ]
+        }
+    });
+
+    // 2. Si no es Tendero, buscar si es Cliente
+    if (!usuario) {
+        usuario = await Cliente.findOne({
+            where: {
+                [Op.or]: [
+                    { telefono: identificador },
+                    { email: identificador }
+                ]
+            }
+        });
+    }
+
+    // 3. Si no se encuentra en ninguno, lanzar error
+    if (!usuario) {
+        const error = new Error('Usuario no encontrado con ese identificador');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    // 4. Hashear la nueva contraseña y guardarla
+    // ⚠️ Cambia 'password_hash' por el nombre real de tu columna (ej: 'password', 'contrasena')
+    const salt = await bcrypt.genSalt(10);
+    usuario.password_hash = await bcrypt.hash(nuevaPassword, salt);
+    
+    await usuario.save();
+
+    return { msg: 'Contraseña actualizada correctamente' };
+
+};
+
+const restablecerPassword = async ({ identificador, nuevaPassword }) => {
+    const { Tendero, Cliente } = require('../models'); 
+    const { Op } = require('sequelize');
+    const bcrypt = require('bcrypt'); // O la librería que uses para hashear
+
+    // 1. Buscar si es un Tendero
+    let usuario = await Tendero.findOne({
+        where: {
+            [Op.or]: [
+                { telefono: identificador },
+                { email: identificador } // Si usas email como identificador
+            ]
+        }
+    });
+
+    // 2. Si no es Tendero, buscar si es Cliente
+    if (!usuario) {
+        usuario = await Cliente.findOne({
+            where: {
+                [Op.or]: [
+                    { telefono: identificador },
+                    { email: identificador }
+                ]
+            }
+        });
+    }
+
+    // 3. Si no se encuentra en ninguno, lanzar error
+    if (!usuario) {
+        const error = new Error('Usuario no encontrado con ese identificador');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    // 4. Hashear la nueva contraseña y guardarla
+    const salt = await bcrypt.genSalt(10);
+    usuario.password_hash = await bcrypt.hash(nuevaPassword, salt);
+    
+    await usuario.save();
+
+    return { msg: 'Contraseña actualizada correctamente' };
+};
+
 module.exports = {
     generarToken,
     login,
     registrarAdministrador,
     registrarTendero,
     consultarPreRegistro,
-    registrarCliente
+    registrarCliente,
+    restablecerPassword
 };
