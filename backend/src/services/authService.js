@@ -276,11 +276,53 @@ const registrarCliente = async ({ telefono: telefonoRaw, password }) => {
     };
 };
 
+const restablecerPassword = async ({ identificador, nuevaPassword }) => {
+    const { Tendero, Cliente } = require('../models');
+    const { Op } = require('sequelize');
+
+    // 1. Buscar primero en Tendero (usuario principal de la app)
+    let usuario = await Tendero.findOne({
+        where: {
+            [Op.or]: [
+                { telefono: identificador },
+                { dni: identificador } // Por si acaso el identificador es DNI
+            ]
+        }
+    });
+
+    // 2. Si no es Tendero, buscar en Cliente
+    if (!usuario) {
+        usuario = await Cliente.findOne({
+            where: {
+                telefono: identificador
+            }
+        });
+    }
+
+    // 3. Si no se encuentra en ninguno, lanzar error
+    if (!usuario) {
+        const error = new Error('Usuario no encontrado con ese identificador');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    // 4. Actualizar la contraseña.
+    // ¡MAGIA DE SEQUELIZE! Gracias a tu hook 'beforeUpdate' en el modelo,
+    // al asignar el texto plano aquí, Sequelize lo hasheará automáticamente 
+    // con bcrypt antes de guardarlo en la base de datos.
+    usuario.password_hash = nuevaPassword;
+
+    await usuario.save();
+
+    return { msg: 'Contraseña actualizada correctamente' };
+};
+
 module.exports = {
     generarToken,
     login,
     registrarAdministrador,
     registrarTendero,
     consultarPreRegistro,
-    registrarCliente
+    registrarCliente,
+    restablecerPassword
 };

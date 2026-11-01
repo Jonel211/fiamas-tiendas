@@ -40,4 +40,7 @@ router.get('/perfil', verificarToken, authController.getPerfilAdmin);
 // PUT /api/auth/perfil
 router.put('/perfil', verificarToken, authController.actualizarPerfilAdmin);
 
+// POST /api/auth/restablecer-password
+router.post('/restablecer-password', authController.restablecerPassword);
+
 module.exports = router;

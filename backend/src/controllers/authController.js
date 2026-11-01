@@ -173,6 +173,28 @@ const actualizarPerfilAdmin = async (req, res, next) => {
         res.status(500).json({ error: 'Error interno al actualizar el perfil.' });
     }
 };
+// 8. RESTABLECER CONTRASEÑA (Olvidé mi contraseña)
+const restablecerPassword = async (req, res, next) => {
+    try {
+        const { identificador, nuevaPassword } = req.body;
+
+        const resultado = await authService.restablecerPassword({
+            identificador: identificador,
+            nuevaPassword: nuevaPassword
+        });
+
+        res.status(200).json({
+            msg: 'Contraseña restablecida exitosamente',
+            ...resultado
+        });
+    } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ error: error.message });
+        }
+        console.error('Error al restablecer contraseña:', error);
+        res.status(500).json({ error: 'Error interno al restablecer la contraseña.' });
+    }
+};
 
 module.exports = {
     login,
@@ -181,5 +203,6 @@ module.exports = {
     consultarPreRegistro,
     registerCliente,
     getPerfilAdmin,
-    actualizarPerfilAdmin
+    actualizarPerfilAdmin,
+    restablecerPassword
 };
