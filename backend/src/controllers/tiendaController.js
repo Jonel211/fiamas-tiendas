@@ -356,9 +356,9 @@ exports.getResumenTienda = async (req, res) => {
             totalCategorias,
             totalClientes,
             fiadosPendientes,
-            fiadosMonto,
+            fiadosMontoResult, // Recibimos el resultado de la consulta SQL
             alertasPendientes,
-            cobradoEsteMes // NUEVO
+            cobradoEsteMes
         ] = await Promise.all([
             Producto.count({ where: { tienda_id: tiendaId, activo: true } }),
             Producto.count({
@@ -373,9 +373,15 @@ exports.getResumenTienda = async (req, res) => {
             Categoria.count({ where: { tienda_id: tiendaId, activo: true } }),
             ClienteTienda.count({ where: { tienda_id: tiendaId, activo: true } }),
             Fiado.count({ where: { tienda_id: tiendaId, estado: estadosPendientes } }),
-            Fiado.sum('monto_total', { where: { tienda_id: tiendaId, estado: estadosPendientes } }),
+            
+            // CORRECCIÓN: Sumamos la diferencia (monto_total - monto_pagado) para obtener el saldo real
+            Fiado.findAll({
+                attributes: [[sequelize.fn('SUM', sequelize.literal('monto_total - COALESCE(monto_pagado, 0)')), 'total_pendiente']],
+                where: { tienda_id: tiendaId, estado: estadosPendientes },
+                raw: true
+            }),
+            
             Alerta.count({ where: { tienda_id: tiendaId, estado: 'pendiente' } }),
-            // NUEVO: Sumar los pagos del mes actual
             Pago.sum('monto', { 
                 where: { 
                     tienda_id: tiendaId, 
@@ -383,6 +389,9 @@ exports.getResumenTienda = async (req, res) => {
                 } 
             })
         ]);
+
+        // Extraemos el saldo real del arreglo que devuelve la consulta
+        const montoPorCobrarReal = fiadosMontoResult[0]?.total_pendiente || 0;
 
         res.status(200).json({
             msg: 'Resumen de la tienda',
@@ -394,9 +403,9 @@ exports.getResumenTienda = async (req, res) => {
                 total_categorias: totalCategorias,
                 total_clientes: totalClientes,
                 fiados_pendientes: fiadosPendientes,
-                monto_por_cobrar: Number(fiadosMonto) || 0,
+                monto_por_cobrar: Number(montoPorCobrarReal) || 0, // Usamos el dato calculado
                 alertas_pendientes: alertasPendientes,
-                cobrado_este_mes: Number(cobradoEsteMes) || 0 // NUEVO
+                cobrado_este_mes: Number(cobradoEsteMes) || 0
             }
         });
     } catch (error) {
