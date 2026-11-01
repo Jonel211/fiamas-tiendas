@@ -1,4 +1,4 @@
-const { DataTypes } = require('sequelize');
+const { DataTypes, Op } = require('sequelize');
 const { sequelize } = require('../config/database');
 
 const Producto = sequelize.define('Producto', {
@@ -30,8 +30,7 @@ const Producto = sequelize.define('Producto', {
     },
     codigo_barras: {
         type: DataTypes.STRING(50),
-        allowNull: true,
-        unique: true
+        allowNull: true
     },
     tipo_venta: {
         type: DataTypes.STRING(20),
@@ -61,6 +60,7 @@ const Producto = sequelize.define('Producto', {
     },
     activo: {
         type: DataTypes.BOOLEAN,
+        allowNull: false,
         defaultValue: true
     },
     creado_en: {
@@ -73,7 +73,13 @@ const Producto = sequelize.define('Producto', {
     }
 }, {
     tableName: 'productos',
-    timestamps: false
+    timestamps: false,
+    indexes: [{
+        name: 'productos_tienda_codigo_barras_uq',
+        unique: true,
+        fields: ['tienda_id', 'codigo_barras'],
+        where: { codigo_barras: { [Op.ne]: null } }
+    }]
 });
 
 module.exports = Producto;

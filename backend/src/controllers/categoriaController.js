@@ -201,7 +201,8 @@ exports.eliminarCategoria = async (req, res) => {
         const enUso = await Producto.count({ where: { categoria_id: categoria.id } });
         if (enUso > 0) {
             return res.status(409).json({
-                error: `La categoría tiene ${enUso} producto(s). Reasígnalos o desactívala en lugar de eliminarla.`
+                error: `No se puede eliminar la categoría porque tiene ${enUso} producto(s) asociado(s).`,
+                cantidad_productos: enUso
             });
         }
 
