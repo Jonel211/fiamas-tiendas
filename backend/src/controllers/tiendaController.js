@@ -1,4 +1,4 @@
-const { Tienda, Tendero, Producto, Categoria, Alerta, Fiado, FiadoDetalle, Pago, ScoringHistorial, LogSistema, ClienteTienda, sequelize } = require('../models');
+const { Tienda, Tendero, Producto, Categoria, Alerta, Fiado, FiadoDetalle, Pago, ScoringHistorial, LogSistema, ClienteTienda, Cliente, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const crypto = require('crypto');
 const { subirImagen } = require('../utils/cloudinaryUpload');
@@ -346,14 +346,32 @@ exports.getResumenTienda = async (req, res) => {
         const tiendaId = tienda.id;
         const estadosPendientes = { [Op.in]: ['pendiente', 'parcial'] };
 
+        // Calcular la fecha de inicio del mes actual
+        const ahora = new Date();
+        const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+
+        // 1. Traemos la lista de fiados pendientes con sus montos
+        const fiadosPendientesLista = await Fiado.findAll({
+            where: { tienda_id: tiendaId, estado: estadosPendientes },
+            attributes: ['monto_total', 'monto_pagado'],
+            raw: true
+        });
+
+        // 2. Calculamos el saldo real sumando (total - pagado) en JavaScript
+        let montoPorCobrarReal = 0;
+        for (const fiado of fiadosPendientesLista) {
+            const total = parseFloat(fiado.monto_total) || 0;
+            const pagado = parseFloat(fiado.monto_pagado) || 0;
+            montoPorCobrarReal += (total - pagado);
+        }
+
         const [
             totalProductos,
             productosStockBajo,
             totalCategorias,
             totalClientes,
-            fiadosPendientes,
-            fiadosMonto,
-            alertasPendientes
+            alertasPendientes,
+            cobradoEsteMes
         ] = await Promise.all([
             Producto.count({ where: { tienda_id: tiendaId, activo: true } }),
             Producto.count({
@@ -367,9 +385,13 @@ exports.getResumenTienda = async (req, res) => {
             }),
             Categoria.count({ where: { tienda_id: tiendaId, activo: true } }),
             ClienteTienda.count({ where: { tienda_id: tiendaId, activo: true } }),
-            Fiado.count({ where: { tienda_id: tiendaId, estado: estadosPendientes } }),
-            Fiado.sum('monto_total', { where: { tienda_id: tiendaId, estado: estadosPendientes } }),
-            Alerta.count({ where: { tienda_id: tiendaId, estado: 'pendiente' } })
+            Alerta.count({ where: { tienda_id: tiendaId, estado: 'pendiente' } }),
+            Pago.sum('monto', { 
+                where: { 
+                    tienda_id: tiendaId, 
+                    fecha_pago: { [Op.gte]: inicioMes } 
+                } 
+            })
         ]);
 
         res.status(200).json({
@@ -381,13 +403,93 @@ exports.getResumenTienda = async (req, res) => {
                 productos_stock_bajo: productosStockBajo,
                 total_categorias: totalCategorias,
                 total_clientes: totalClientes,
-                fiados_pendientes: fiadosPendientes,
-                monto_por_cobrar: Number(fiadosMonto) || 0,
-                alertas_pendientes: alertasPendientes
+                fiados_pendientes: fiadosPendientesLista.length, // La cantidad de fiados
+                monto_por_cobrar: montoPorCobrarReal, // El saldo real calculado
+                alertas_pendientes: alertasPendientes,
+                cobrado_este_mes: Number(cobradoEsteMes) || 0
             }
         });
     } catch (error) {
         console.error('Error al obtener resumen:', error);
         res.status(500).json({ error: 'Error interno al obtener el resumen de la tienda.' });
+    }
+};
+
+// 6. OBTENER MOVIMIENTOS RECIENTES (Dashboard)
+// GET /api/tiendas/movimientos-recientes?tienda_id=xxx
+exports.obtenerMovimientosRecientes = async (req, res) => {
+    try {
+        const tienda = await buscarTiendaPermitida(req, req.query.tienda_id);
+        if (!tienda) {
+            return res.status(404).json({ error: 'Tienda no encontrada o no tienes permisos.' });
+        }
+
+        const tiendaId = tienda.id;
+
+        // 1. Obtener los últimos 5 fiados
+        const fiados = await Fiado.findAll({
+            where: { tienda_id: tiendaId },
+            order: [['creado_en', 'DESC']],
+            limit: 5,
+            include: [
+                { model: Cliente, as: 'cliente', attributes: ['nombres', 'apellidos'] },
+                {
+                    model: FiadoDetalle,
+                    as: 'detalles',
+                    include: [{ model: Producto, as: 'producto', attributes: ['nombre'] }]
+                }
+            ]
+        });
+
+        // 2. Obtener los últimos 5 pagos
+        const pagos = await Pago.findAll({
+            where: { tienda_id: tiendaId },
+            order: [['fecha_pago', 'DESC']],
+            limit: 5,
+            include: [
+                {
+                    model: Fiado,
+                    as: 'fiado',
+                    include: [{ model: Cliente, as: 'cliente', attributes: ['nombres', 'apellidos'] }]
+                }
+            ]
+        });
+
+        // 3. Formatear los fiados
+        const fiadosMapeados = fiados.map(f => ({
+            id: f.id,
+            tipo: 'fiado',
+            cliente_nombre: f.cliente ? `${f.cliente.nombres} ${f.cliente.apellidos}` : 'Cliente Desconocido',
+            monto: Number(f.monto_total) || 0,
+            fecha: f.creado_en,
+            detalle: f.detalles.map(d => d.producto ? d.producto.nombre : 'Producto').join(', ')
+        }));
+
+        // 4. Formatear los pagos
+        const pagosMapeados = pagos.map(p => {
+            const cliente = p.fiado && p.fiado.cliente;
+            return {
+                id: p.id,
+                tipo: 'pago',
+                cliente_nombre: cliente ? `${cliente.nombres} ${cliente.apellidos}` : 'Cliente Desconocido',
+                monto: Number(p.monto) || 0,
+                fecha: p.fecha_pago,
+                detalle: 'Cobro de deuda'
+            };
+        });
+
+        // 5. Combinar ambas listas, ordenar por fecha descendente y tomar los últimos 5
+        const movimientos = [...fiadosMapeados, ...pagosMapeados]
+            .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+            .slice(0, 5);
+
+        res.status(200).json({
+            msg: 'Movimientos recientes obtenidos exitosamente',
+            movimientos
+        });
+
+    } catch (error) {
+        console.error('Error al obtener movimientos recientes:', error);
+        res.status(500).json({ error: 'Error interno al obtener los movimientos.' });
     }
 };
