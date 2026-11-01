@@ -350,13 +350,26 @@ exports.getResumenTienda = async (req, res) => {
         const ahora = new Date();
         const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
 
+        // 1. Traemos la lista de fiados pendientes con sus montos
+        const fiadosPendientesLista = await Fiado.findAll({
+            where: { tienda_id: tiendaId, estado: estadosPendientes },
+            attributes: ['monto_total', 'monto_pagado'],
+            raw: true
+        });
+
+        // 2. Calculamos el saldo real sumando (total - pagado) en JavaScript
+        let montoPorCobrarReal = 0;
+        for (const fiado of fiadosPendientesLista) {
+            const total = parseFloat(fiado.monto_total) || 0;
+            const pagado = parseFloat(fiado.monto_pagado) || 0;
+            montoPorCobrarReal += (total - pagado);
+        }
+
         const [
             totalProductos,
             productosStockBajo,
             totalCategorias,
             totalClientes,
-            fiadosPendientes,
-            fiadosMontoResult, // Recibimos el resultado de la consulta SQL
             alertasPendientes,
             cobradoEsteMes
         ] = await Promise.all([
@@ -372,15 +385,6 @@ exports.getResumenTienda = async (req, res) => {
             }),
             Categoria.count({ where: { tienda_id: tiendaId, activo: true } }),
             ClienteTienda.count({ where: { tienda_id: tiendaId, activo: true } }),
-            Fiado.count({ where: { tienda_id: tiendaId, estado: estadosPendientes } }),
-            
-            // CORRECCIÓN: Sumamos la diferencia (monto_total - monto_pagado) para obtener el saldo real
-            Fiado.findAll({
-                attributes: [[sequelize.fn('SUM', sequelize.literal('monto_total - COALESCE(monto_pagado, 0)')), 'total_pendiente']],
-                where: { tienda_id: tiendaId, estado: estadosPendientes },
-                raw: true
-            }),
-            
             Alerta.count({ where: { tienda_id: tiendaId, estado: 'pendiente' } }),
             Pago.sum('monto', { 
                 where: { 
@@ -389,9 +393,6 @@ exports.getResumenTienda = async (req, res) => {
                 } 
             })
         ]);
-
-        // Extraemos el saldo real del arreglo que devuelve la consulta
-        const montoPorCobrarReal = fiadosMontoResult[0]?.total_pendiente || 0;
 
         res.status(200).json({
             msg: 'Resumen de la tienda',
@@ -402,8 +403,8 @@ exports.getResumenTienda = async (req, res) => {
                 productos_stock_bajo: productosStockBajo,
                 total_categorias: totalCategorias,
                 total_clientes: totalClientes,
-                fiados_pendientes: fiadosPendientes,
-                monto_por_cobrar: Number(montoPorCobrarReal) || 0, // Usamos el dato calculado
+                fiados_pendientes: fiadosPendientesLista.length, // La cantidad de fiados
+                monto_por_cobrar: montoPorCobrarReal, // El saldo real calculado
                 alertas_pendientes: alertasPendientes,
                 cobrado_este_mes: Number(cobradoEsteMes) || 0
             }
