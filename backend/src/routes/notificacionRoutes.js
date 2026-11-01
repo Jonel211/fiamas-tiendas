@@ -10,5 +10,6 @@ router.get('/no-leidas/count', soloTendero, ctrl.contarNoLeidas);
 router.patch('/leer-todas', soloTendero, ctrl.marcarTodas);   // antes de /:id
 router.delete('/limpiar', soloTendero, ctrl.limpiarTodas);    // limpiar/cerrar todas
 router.patch('/:id/leer', soloTendero, ctrl.marcarLeida);
+router.delete('/:id', soloTendero, ctrl.eliminarUna);
 
 module.exports = router;

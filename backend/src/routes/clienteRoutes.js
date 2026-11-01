@@ -63,10 +63,6 @@ router.put(
     clienteController.actualizarCliente
 );
 
-module.exports = router;
-
-// ... (tus rutas existentes: /buscar, /, POST /) ...
-
 // 6. VINCULAR CLIENTE A TIENDA
 router.post(
     '/:clienteId/vincular',
@@ -123,3 +119,5 @@ router.get(
     verificarRol(['admin', 'tendero']),
     clienteController.historialPagosCliente
 );
+
+module.exports = router;
