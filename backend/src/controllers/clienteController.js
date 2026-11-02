@@ -180,7 +180,8 @@ exports.listarClientes = async (req, res) => {
         const clientesTienda = await ClienteTienda.findAll({
             where: {
                 tienda_id: tiendaId,
-                activo: true
+                activo: true,
+                ...(req.query.con_deuda === 'true' ? { saldo_actual: { [Op.gt]: 0 } } : {})
             },
             include: [{
                 model: Cliente,
@@ -189,7 +190,9 @@ exports.listarClientes = async (req, res) => {
                 attributes: ['id', 'telefono', 'nombres', 'apellidos', 'direccion', 'foto_perfil_url', 'creado_en'],
                 where: { activo: true }
             }],
-            order: [['creado_en', 'DESC']]
+            order: req.query.orden === 'saldo_desc'
+                ? [['saldo_actual', 'DESC'], ['creado_en', 'DESC']]
+                : [['creado_en', 'DESC']]
         });
 
         // Formatear respuesta

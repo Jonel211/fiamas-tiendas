@@ -70,6 +70,14 @@ router.get(
     tenderoController.getEstadisticas
 );
 
+// 4.1 ACTIVAR/DESACTIVAR PREMIUM DE UN TENDERO (ADMIN)
+router.patch(
+    '/:id/premium',
+    verificarToken,
+    verificarRol(['admin']),
+    tenderoController.actualizarPremium
+);
+
 // 5. ALTERNAR ESTADO ACTIVO TENDERO (PANEL ADMIN)
 // PUT /api/tenderos/toggle-activo/:id
 router.put(
