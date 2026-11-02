@@ -173,6 +173,47 @@ exports.toggleActivoTenderoAdmin = async (req, res) => {
     }
 };
 
+// PATCH /api/tenderos/:id/premium (solo admin)
+exports.actualizarPremium = async (req, res) => {
+    let t;
+    try {
+        const { es_premium } = req.body || {};
+        if (typeof es_premium !== 'boolean') {
+            return res.status(400).json({ error: 'El campo es_premium debe ser true o false.' });
+        }
+
+        t = await sequelize.transaction();
+        const tendero = await Tendero.findByPk(req.params.id, {
+            attributes: ['id', 'nombres', 'apellidos', 'telefono', 'es_premium'],
+            transaction: t
+        });
+        if (!tendero) {
+            await t.rollback();
+            return res.status(404).json({ error: 'Tendero no encontrado.' });
+        }
+
+        await tendero.update({ es_premium, actualizado_en: new Date() }, { transaction: t });
+        await LogSistema.create({
+            usuario_id: req.usuario.id,
+            tipo_usuario: 'admin',
+            accion: 'tendero_premium_actualizado',
+            tabla_afectada: 'tenderos',
+            descripcion: `Premium ${es_premium ? 'activado' : 'desactivado'} para el tendero ${tendero.nombres} ${tendero.apellidos}.`
+        }, { transaction: t });
+
+        await t.commit();
+
+        res.status(200).json({
+            msg: 'Estado premium del tendero actualizado exitosamente.',
+            tendero
+        });
+    } catch (error) {
+        if (t && !t.finished) await t.rollback();
+        console.error('Error al actualizar estado premium del tendero:', error);
+        res.status(500).json({ error: 'Error interno al actualizar el estado premium del tendero.' });
+    }
+};
+
 // 0.4 ELIMINAR TENDERO (PANEL ADMIN)
 exports.eliminarTenderoAdmin = async (req, res) => {
     const t = await sequelize.transaction();

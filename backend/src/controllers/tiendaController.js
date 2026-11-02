@@ -3,8 +3,8 @@ const { Op } = require('sequelize');
 const crypto = require('crypto');
 const { subirImagen } = require('../utils/cloudinaryUpload');
 
-const INCLUDE_TENDERO_BASICO = [{ model: Tendero, as: 'tendero', attributes: ['id', 'nombres', 'apellidos', 'telefono'] }];
-const INCLUDE_TENDERO_COMPLETO = [{ model: Tendero, as: 'tendero', attributes: ['id', 'dni', 'nombres', 'apellidos', 'telefono'] }];
+const INCLUDE_TENDERO_BASICO = [{ model: Tendero, as: 'tendero', attributes: ['id', 'nombres', 'apellidos', 'telefono', 'es_premium'] }];
+const INCLUDE_TENDERO_COMPLETO = [{ model: Tendero, as: 'tendero', attributes: ['id', 'dni', 'nombres', 'apellidos', 'telefono', 'es_premium'] }];
 
 // ──────────────────────────────────────────────────────────────────────────
 // AUXILIAR: devuelve la tienda solo si el usuario tiene derecho sobre ella.
