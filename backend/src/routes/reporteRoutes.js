@@ -10,8 +10,11 @@ const reporteController = require('../controllers/reporteController');
 // Asegúrate de que los nombres de las funciones (ej: obtenerReporteVentas) 
 // coincidan EXACTAMENTE con los que exportas en reporteController.js
 
-// ✅ NUEVA RUTA PARA EL DASHBOARD DE REACT
+// NUEVA RUTA PARA EL DASHBOARD DE REACT
 router.get('/estadisticas', verificarToken, reporteController.obtenerEstadisticas);
+
+// NUEVA RUTA PARA LOS REPORTES Y ESTADÍSTICAS DE LA APP DEL TENDERO
+router.get('/resumen-app', verificarToken, reporteController.obtenerReportesTendero);
 
 router.get('/ventas', verificarToken, reporteController.obtenerReporteVentas);
 router.get('/productos', verificarToken, reporteController.obtenerReporteProductos);
