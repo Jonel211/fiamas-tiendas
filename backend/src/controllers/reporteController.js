@@ -1,5 +1,4 @@
-// ✅ Agregamos 'Tendero' a la importación
-const { Producto, Tienda, Categoria, Tendero } = require('../models');
+const { Producto, Tienda, Categoria, Tendero, Fiado, Pago, ClienteTienda, FiadoDetalle, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -278,5 +277,95 @@ exports.obtenerEstadisticas = async (req, res) => {
     } catch (error) {
         console.error('Error al obtener estadísticas del dashboard:', error);
         res.status(500).json({ error: 'Error interno al obtener las estadísticas.' });
+    }
+};
+
+// ═════════════════════════════════════════════════════════════════════════
+// OBTENER REPORTES Y ESTADÍSTICAS PARA LA APP DEL TENDERO
+// GET /api/reportes/resumen-app?tienda_id=xxx
+// ═════════════════════════════════════════════════════════════════════════
+exports.obtenerReportesTendero = async (req, res) => {
+    try {
+        const { tienda_id } = req.query;
+        if (!tienda_id) {
+            return res.status(400).json({ error: 'El parámetro tienda_id es obligatorio.' });
+        }
+
+        const estadosPendientes = { [Op.in]: ['pendiente', 'parcial'] };
+
+        // 1. Calcular Total Fiados (Histórico)
+        const totalFiados = await Fiado.count({ where: { tienda_id } });
+        const montoTotalFiado = await Fiado.sum('monto_total', { where: { tienda_id } }) || 0;
+
+        // 2. Calcular Fiados por Cobrar
+        const fiadosPendientesLista = await Fiado.findAll({
+            where: { tienda_id, estado: estadosPendientes },
+            attributes: ['cliente_id', 'monto_total', 'monto_pagado'],
+            raw: true
+        });
+
+        let porCobrar = 0;
+        const clientesUnicos = new Set();
+        fiadosPendientesLista.forEach(f => {
+            porCobrar += (Number(f.monto_total) - Number(f.monto_pagado));
+            clientesUnicos.add(f.cliente_id);
+        });
+
+        // 3. Calcular Cobros (Histórico)
+        const totalCobros = await Pago.count({ where: { tienda_id } });
+        const montoTotalCobrado = await Pago.sum('monto', { where: { tienda_id } }) || 0;
+
+        // 4. Top Productos más vendidos (basado en los detalles de los fiados)
+        const topProductosRaw = await FiadoDetalle.findAll({
+            include: [
+                {
+                    model: Fiado,
+                    as: 'fiado',
+                    where: { tienda_id },
+                    attributes: []
+                },
+                {
+                    model: Producto,
+                    as: 'producto',
+                    attributes: ['nombre']
+                }
+            ],
+            attributes: [
+                'producto_id',
+                [sequelize.fn('SUM', sequelize.col('cantidad')), 'total_vendido']
+            ],
+            group: ['producto_id', 'producto.id', 'producto.nombre'],
+            order: [[sequelize.literal('total_vendido'), 'DESC']],
+            limit: 10,
+            raw: true
+        });
+
+        const topProductos = topProductosRaw.map(p => ({
+            nombre: p['producto.nombre'],
+            cantidad: Number(p.total_vendido)
+        }));
+
+        // 5. Totales para el Perfil de la Tienda
+        const totalClientes = await ClienteTienda.count({ where: { tienda_id, activo: true } });
+        const totalProductos = await Producto.count({ where: { tienda_id, activo: true } });
+
+        // Enviamos toda la data junta
+        res.status(200).json({
+            resumen: {
+                totalFiados,
+                montoTotalFiado,
+                porCobrar,
+                clientesPendientes: clientesUnicos.size,
+                totalCobros,
+                montoTotalCobrado,
+                totalClientes,
+                totalProductos,
+                topProductos
+            }
+        });
+
+    } catch (error) {
+        console.error('Error al obtener reportes de la tienda:', error);
+        res.status(500).json({ error: 'Error interno al obtener los reportes.' });
     }
 };
