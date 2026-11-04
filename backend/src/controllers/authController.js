@@ -20,7 +20,7 @@ const login = async (req, res, next) => {
         if (error.statusCode) {
             let mensaje = error.message;
             // Si es un cliente móvil, ocultamos la mención de email
-            if (rol === 'cliente' && mensaje.includes('email/teléfono')) {
+            if (req.body?.rol === 'cliente' && mensaje.includes('email/teléfono')) {
                 mensaje = 'Credenciales inválidas. Verifica tu teléfono y contraseña.';
             }
             return res.status(error.statusCode).json({ error: mensaje });
