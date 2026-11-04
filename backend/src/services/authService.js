@@ -206,7 +206,7 @@ const consultarPreRegistro = async (telefonoRaw) => {
 
     const cliente = await Cliente.findOne({
         where: { telefono, activo: true },
-        attributes: ['id', 'nombres', 'apellidos', 'password_hash']
+        attributes: ['id', 'nombres', 'apellidos', 'direccion', 'password_hash']
     });
 
     if (!cliente) return { encontrado: false };
@@ -220,12 +220,13 @@ const consultarPreRegistro = async (telefonoRaw) => {
     return {
         encontrado: true,
         nombres: cliente.nombres,
-        apellidos: cliente.apellidos
+        apellidos: cliente.apellidos,
+        direccion: cliente.direccion
     };
 };
 
 // 5. REGISTRO DE CLIENTE (activa la cuenta creada por el tendero)
-const registrarCliente = async ({ telefono: telefonoRaw, password, token, nombres, apellidos }) => {
+const registrarCliente = async ({ telefono: telefonoRaw, password, token, nombres, apellidos, direccion }) => {
     const telefono = String(telefonoRaw || '').trim();
 
     if (!/^\d{9}$/.test(telefono)) {
@@ -233,11 +234,17 @@ const registrarCliente = async ({ telefono: telefonoRaw, password, token, nombre
         error.statusCode = 400;
         throw error;
     }
-    if (!password || password.length < 6) {
+    if (typeof password !== 'string' || password.length < 6) {
         const error = new Error('La contraseña debe tener al menos 6 caracteres.');
         error.statusCode = 400;
         throw error;
     }
+    if (direccion !== undefined && (typeof direccion !== 'string' || !direccion.trim())) {
+        const error = new Error('Ingresa una dirección válida.');
+        error.statusCode = 400;
+        throw error;
+    }
+    const direccionLimpia = direccion?.trim();
 
     // El QR es un token de tienda, no una URL ni un ID de tienda aportado por el cliente.
     if (token !== undefined && token !== null) {
@@ -279,9 +286,11 @@ const registrarCliente = async ({ telefono: telefonoRaw, password, token, nombre
                     throw error;
                 }
                 cliente = await Cliente.create({
-                    telefono, nombres: nombre, apellidos: apellido, password_hash: password, activo: true
+                    telefono, nombres: nombre, apellidos: apellido,
+                    direccion: direccionLimpia || null, password_hash: password, activo: true
                 }, { transaction });
             } else {
+                if (direccionLimpia) cliente.direccion = direccionLimpia;
                 cliente.password_hash = password;
                 cliente.actualizado_en = new Date();
                 await cliente.save({ transaction });
@@ -330,6 +339,7 @@ const registrarCliente = async ({ telefono: telefonoRaw, password, token, nombre
     }
 
     // El hook beforeUpdate del modelo Cliente hashea la contraseña al guardar
+    if (direccionLimpia) cliente.direccion = direccionLimpia;
     cliente.password_hash = password;
     cliente.actualizado_en = new Date();
     await cliente.save();
