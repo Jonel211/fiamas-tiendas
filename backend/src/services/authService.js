@@ -225,7 +225,7 @@ const consultarPreRegistro = async (telefonoRaw) => {
 };
 
 // 5. REGISTRO DE CLIENTE (activa la cuenta creada por el tendero)
-const registrarCliente = async ({ telefono: telefonoRaw, password }) => {
+const registrarCliente = async ({ telefono: telefonoRaw, password, token, nombres, apellidos }) => {
     const telefono = String(telefonoRaw || '').trim();
 
     if (!/^\d{9}$/.test(telefono)) {
@@ -237,6 +237,74 @@ const registrarCliente = async ({ telefono: telefonoRaw, password }) => {
         const error = new Error('La contraseña debe tener al menos 6 caracteres.');
         error.statusCode = 400;
         throw error;
+    }
+
+    // El QR es un token de tienda, no una URL ni un ID de tienda aportado por el cliente.
+    if (token !== undefined && token !== null) {
+        if (typeof token !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)) {
+            const error = new Error('El código QR de la tienda no es válido.');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        return sequelize.transaction(async (transaction) => {
+            const tienda = await Tienda.findOne({
+                where: { qr_token: token, qr_activo: true, activo: true },
+                transaction, lock: transaction.LOCK.UPDATE
+            });
+            if (!tienda) {
+                const error = new Error('El QR de la tienda no existe, fue desactivado o ya cambió. Escanéalo de nuevo.');
+                error.statusCode = 404;
+                throw error;
+            }
+
+            let cliente = await Cliente.findOne({ where: { telefono }, transaction, lock: transaction.LOCK.UPDATE });
+            if (cliente && !cliente.activo) {
+                const error = new Error('Esta cuenta está desactivada. Contacta con soporte.');
+                error.statusCode = 403;
+                throw error;
+            }
+            if (cliente && cliente.password_hash) {
+                const error = new Error('Ya tienes una cuenta. Inicia sesión.');
+                error.statusCode = 409;
+                throw error;
+            }
+
+            if (!cliente) {
+                const nombre = typeof nombres === 'string' ? nombres.trim() : '';
+                const apellido = typeof apellidos === 'string' ? apellidos.trim() : '';
+                if (!nombre || !apellido || nombre.length > 100 || apellido.length > 100) {
+                    const error = new Error('Ingresa tus nombres y apellidos para registrarte con QR.');
+                    error.statusCode = 400;
+                    throw error;
+                }
+                cliente = await Cliente.create({
+                    telefono, nombres: nombre, apellidos: apellido, password_hash: password, activo: true
+                }, { transaction });
+            } else {
+                cliente.password_hash = password;
+                cliente.actualizado_en = new Date();
+                await cliente.save({ transaction });
+            }
+
+            const vinculo = await ClienteTienda.findOne({
+                where: { cliente_id: cliente.id, tienda_id: tienda.id }, transaction
+            });
+            if (vinculo) {
+                if (!vinculo.activo) {
+                    await vinculo.update({ activo: true, metodo_vinculacion: 'qr', actualizado_en: new Date() }, { transaction });
+                }
+            } else {
+                await ClienteTienda.create({
+                    cliente_id: cliente.id, tienda_id: tienda.id, metodo_vinculacion: 'qr', activo: true
+                }, { transaction });
+            }
+
+            return {
+                cliente: { id: cliente.id, telefono: cliente.telefono, nombres: cliente.nombres, apellidos: cliente.apellidos },
+                tienda: { id: tienda.id, nombre: tienda.nombre }
+            };
+        });
     }
 
     const cliente = await Cliente.findOne({ where: { telefono, activo: true } });
