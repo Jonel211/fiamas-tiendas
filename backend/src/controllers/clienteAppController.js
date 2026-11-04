@@ -1,4 +1,4 @@
-const { Cliente, ClienteTienda, Tienda, Fiado, FiadoDetalle, Pago, Producto, sequelize } = require('../models');
+﻿const { Cliente, ClienteTienda, Tienda, Fiado, FiadoDetalle, Pago, Producto, sequelize } = require('../models');
 const cloudinary = require('../config/cloudinary');
 
 // ACTUALIZAR FOTO DE PERFIL DEL CLIENTE
@@ -424,12 +424,14 @@ exports.misPagos = async (req, res) => {
             fecha_pago: pago.fecha_pago,
             referencia: pago.referencia,
             notas: pago.notas,
-            fiado: {
+            tipo_pago: pago.tipo_pago || pago.metodo_pago || 'efectivo',
+            metodo_pago: pago.tipo_pago || pago.metodo_pago || 'efectivo',
+            fiado: pago.fiado ? {
                 id: pago.fiado.id,
                 monto_total: pago.fiado.monto_total,
                 estado: pago.fiado.estado,
                 tienda: pago.fiado.tienda
-            }
+            } : null
         }));
 
         const totalPagado = pagos.reduce((sum, pago) => sum + Number(pago.monto), 0);
