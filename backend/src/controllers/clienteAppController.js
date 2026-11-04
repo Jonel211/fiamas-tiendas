@@ -82,12 +82,11 @@ exports.miPerfil = async (req, res) => {
 
 // 2. ACTUALIZAR PERFIL DEL CLIENTE
 // PUT /api/app-cliente/mi-perfil
-// Nota: nombres y apellidos los define el tendero y no se editan desde aquí.
 // ═══════════════════════════════════════════════════════════════════════════
 exports.actualizarMiPerfil = async (req, res) => {
     try {
         const clienteId = req.usuario.id;
-        const { direccion, foto_perfil_url } = req.body;
+        const { nombres, apellidos, direccion, foto_perfil_url } = req.body;
 
         const cliente = await Cliente.findByPk(clienteId);
         if (!cliente) {
@@ -95,6 +94,13 @@ exports.actualizarMiPerfil = async (req, res) => {
         }
 
         const datosActualizacion = {};
+        for (const [campo, valor] of Object.entries({ nombres, apellidos })) {
+            if (valor === undefined) continue;
+            if (typeof valor !== 'string' || !valor.trim() || valor.trim().length > 100) {
+                return res.status(400).json({ error: `${campo} debe contener entre 1 y 100 caracteres.` });
+            }
+            datosActualizacion[campo] = valor.trim();
+        }
         if (direccion !== undefined) datosActualizacion.direccion = direccion ? String(direccion).trim() : null;
         if (foto_perfil_url !== undefined) datosActualizacion.foto_perfil_url = foto_perfil_url;
 
