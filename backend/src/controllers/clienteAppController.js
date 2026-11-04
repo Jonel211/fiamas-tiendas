@@ -1,4 +1,5 @@
 ﻿const { Cliente, ClienteTienda, Tienda, Fiado, FiadoDetalle, Pago, Producto, sequelize } = require('../models');
+const { Op } = require('sequelize');
 const cloudinary = require('../config/cloudinary');
 
 // ACTUALIZAR FOTO DE PERFIL DEL CLIENTE
@@ -320,40 +321,39 @@ exports.miResumen = async (req, res) => {
         });
 
         const hoy = new Date().toISOString().slice(0, 10);
-        const resumenPorTienda = await Promise.all(
-            vinculaciones.map(async (vinculo) => {
-                const fiados = await Fiado.findAll({
-                    where: { cliente_id: clienteId, tienda_id: vinculo.tienda_id },
-                    attributes: ['id', 'monto_total', 'monto_pagado', 'estado', 'fecha_vencimiento'],
-                    include: [{ model: Pago, as: 'pagos', attributes: ['fecha_pago'], separate: true }]
-                });
-                const activos = fiados.filter(f => !['pagado', 'cancelado'].includes(f.estado)
-                    && Number(f.monto_total) > Number(f.monto_pagado || 0));
-                const montoPendiente = activos.reduce((sum, f) => sum + Math.max(0, Number(f.monto_total) - Number(f.monto_pagado || 0)), 0);
-                const fiadosMora = activos.filter(f => f.fecha_vencimiento && String(f.fecha_vencimiento).slice(0, 10) < hoy).length;
-                const pagadosTarde = fiados.filter(f => f.estado === 'pagado' && f.fecha_vencimiento
-                    && f.pagos?.some(p => new Date(p.fecha_pago).toISOString().slice(0, 10) > String(f.fecha_vencimiento).slice(0, 10))).length;
-                const historial = fiados.filter(f => f.estado !== 'cancelado');
-                const score = historial.length ? Math.max(0, 100 - fiadosMora * 20 - pagadosTarde * 10) : null;
-                const categoria = score === null ? 'nuevo' : score >= 90 ? 'excelente' : score >= 75 ? 'bueno' : score >= 50 ? 'regular' : 'moroso';
+        const todosLosFiados = vinculaciones.length ? await Fiado.findAll({
+            where: { cliente_id: clienteId, tienda_id: { [Op.in]: vinculaciones.map(v => v.tienda_id) } },
+            attributes: ['id', 'tienda_id', 'monto_total', 'monto_pagado', 'estado', 'fecha_vencimiento'],
+            include: [{ model: Pago, as: 'pagos', attributes: ['fecha_pago'], separate: true }]
+        }) : [];
+        const resumenPorTienda = vinculaciones.map(vinculo => {
+            const fiados = todosLosFiados.filter(f => f.tienda_id === vinculo.tienda_id);
+            const activos = fiados.filter(f => !['pagado', 'cancelado'].includes(f.estado)
+                && Number(f.monto_total) > Number(f.monto_pagado || 0));
+            const montoPendiente = activos.reduce((sum, f) => sum + Math.max(0, Number(f.monto_total) - Number(f.monto_pagado || 0)), 0);
+            const fiadosMora = activos.filter(f => f.fecha_vencimiento && String(f.fecha_vencimiento).slice(0, 10) < hoy).length;
+            const pagadosTarde = fiados.filter(f => f.estado === 'pagado' && f.fecha_vencimiento
+                && f.pagos?.some(p => new Date(p.fecha_pago).toISOString().slice(0, 10) > String(f.fecha_vencimiento).slice(0, 10))).length;
+            const historial = fiados.filter(f => f.estado !== 'cancelado');
+            const score = historial.length ? Math.max(0, 100 - fiadosMora * 20 - pagadosTarde * 10) : null;
+            const categoria = score === null ? 'nuevo' : score >= 90 ? 'excelente' : score >= 75 ? 'bueno' : score >= 50 ? 'regular' : 'moroso';
 
-                return {
-                    tienda: vinculo.tienda,
-                    limite_credito: vinculo.limite_credito,
-                    saldo_actual: montoPendiente,
-                    score_pagador: score,
-                    categoria_pagador: categoria,
-                    total_fiados: historial.length,
-                    total_pagos: fiados.reduce((total, f) => total + (f.pagos?.length || 0), 0),
-                    fiados_activos: activos.length,
-                    monto_pendiente: montoPendiente,
-                    fiados_en_mora: fiadosMora,
-                    porcentaje_limite_usado: vinculo.limite_credito > 0
-                        ? ((montoPendiente / vinculo.limite_credito) * 100).toFixed(2)
-                        : 0
-                };
-            })
-        );
+            return {
+                tienda: vinculo.tienda,
+                limite_credito: vinculo.limite_credito,
+                saldo_actual: montoPendiente,
+                score_pagador: score,
+                categoria_pagador: categoria,
+                total_fiados: historial.length,
+                total_pagos: fiados.reduce((total, f) => total + (f.pagos?.length || 0), 0),
+                fiados_activos: activos.length,
+                monto_pendiente: montoPendiente,
+                fiados_en_mora: fiadosMora,
+                porcentaje_limite_usado: vinculo.limite_credito > 0
+                    ? ((montoPendiente / vinculo.limite_credito) * 100).toFixed(2)
+                    : 0
+            };
+        });
 
         const totalSaldo = resumenPorTienda.reduce((sum, t) => sum + Number(t.saldo_actual), 0);
         const totalLimite = resumenPorTienda.reduce((sum, t) => sum + Number(t.limite_credito), 0);
