@@ -18,7 +18,12 @@ const login = async (req, res, next) => {
         });
     } catch (error) {
         if (error.statusCode) {
-            return res.status(error.statusCode).json({ error: error.message });
+            let mensaje = error.message;
+            // Si es un cliente móvil, ocultamos la mención de email
+            if (rol === 'cliente' && mensaje.includes('email/teléfono')) {
+                mensaje = 'Credenciales inválidas. Verifica tu teléfono y contraseña.';
+            }
+            return res.status(error.statusCode).json({ error: mensaje });
         }
         console.error('Error en login:', error);
         res.status(500).json({ error: 'Error interno del servidor al intentar iniciar sesión.' });
