@@ -35,6 +35,11 @@ const Tendero = sequelize.define('Tendero', {
         allowNull: true,
         comment: 'Foto de perfil del tendero'
     },
+    es_premium: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+    },
     activo: {
         type: DataTypes.BOOLEAN,
         defaultValue: true
