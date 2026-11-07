@@ -282,11 +282,11 @@ exports.obtenerEstadisticas = async (req, res) => {
 
 // ═════════════════════════════════════════════════════════════════════════
 // OBTENER REPORTES Y ESTADÍSTICAS PARA LA APP DEL TENDERO
-// GET /api/reportes/resumen-app?tienda_id=xxx&periodo=semana
+// GET /api/reportes/resumen-app?tienda_id=xxx&periodo=semana&cliente_id=yyy
 // ═════════════════════════════════════════════════════════════════════════
 exports.obtenerReportesTendero = async (req, res) => {
     try {
-        const { tienda_id, periodo } = req.query;
+        const { tienda_id, periodo, cliente_id } = req.query;
         if (!tienda_id) {
             return res.status(400).json({ error: 'El parámetro tienda_id es obligatorio.' });
         }
@@ -303,7 +303,7 @@ exports.obtenerReportesTendero = async (req, res) => {
             fechaInicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - 7);
         } else if (periodo === 'mes') {
             fechaInicio = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-        } // Si es 'todo' o no viene, fechaInicio es null (trae todo)
+        }
 
         const whereFiado = { tienda_id };
         const wherePago = { tienda_id };
@@ -313,13 +313,36 @@ exports.obtenerReportesTendero = async (req, res) => {
             wherePago.fecha_pago = { [Op.gte]: fechaInicio };
         }
 
-        // 2. Calcular Total Fiados (Filtrado)
-        const totalFiados = await Fiado.count({ where: whereFiado });
-        const montoTotalFiado = await Fiado.sum('monto_total', { where: whereFiado }) || 0;
+        // FILTRO POR CLIENTE (Si viene en la URL)
+        if (cliente_id) {
+            whereFiado.cliente_id = cliente_id;
+            wherePago.cliente_id = cliente_id;
+        }
 
-        // 3. Calcular Fiados por Cobrar (No se filtra por fecha, es deuda actual)
+        // 2. Traer las listas detalladas (Para los PDFs específicos)
+        const listaFiados = await Fiado.findAll({
+            where: whereFiado,
+            include: [{ model: Cliente, as: 'cliente', attributes: ['nombres', 'apellidos'] }],
+            order: [['creado_en', 'DESC']],
+            raw: true,
+            nest: true
+        });
+
+        const listaCobros = await Pago.findAll({
+            where: wherePago,
+            include: [{ model: Cliente, as: 'cliente', attributes: ['nombres', 'apellidos'] }],
+            order: [['fecha_pago', 'DESC']],
+            raw: true,
+            nest: true
+        });
+
+        // 3. Calcular Totales a partir de las listas filtradas
+        const totalFiados = listaFiados.length;
+        const montoTotalFiado = listaFiados.reduce((sum, f) => sum + Number(f.monto_total), 0);
+
+        // Calcular Fiados por Cobrar
         const fiadosPendientesLista = await Fiado.findAll({
-            where: { tienda_id, estado: estadosPendientes },
+            where: { tienda_id, estado: estadosPendientes, ...(cliente_id && { cliente_id }) },
             attributes: ['cliente_id', 'monto_total', 'monto_pagado'],
             raw: true
         });
@@ -331,11 +354,10 @@ exports.obtenerReportesTendero = async (req, res) => {
             clientesUnicos.add(f.cliente_id);
         });
 
-        // 4. Calcular Cobros (Filtrado)
-        const totalCobros = await Pago.count({ where: wherePago });
-        const montoTotalCobrado = await Pago.sum('monto', { where: wherePago }) || 0;
+        const totalCobros = listaCobros.length;
+        const montoTotalCobrado = listaCobros.reduce((sum, p) => sum + Number(p.monto), 0);
 
-        // 5. Top Productos
+        // 4. Top Productos
         const topProductosRaw = await FiadoDetalle.findAll({
             include: [
                 { model: Fiado, as: 'fiado', where: whereFiado, attributes: [] },
@@ -353,11 +375,11 @@ exports.obtenerReportesTendero = async (req, res) => {
             cantidad: Number(p.total_vendido)
         }));
 
-        // 6. Totales para el Perfil
+        // 5. Totales para el Perfil
         const totalClientes = await ClienteTienda.count({ where: { tienda_id, activo: true } });
         const totalProductos = await Producto.count({ where: { tienda_id, activo: true } });
 
-        // 7. Datos para el gráfico (últimos 7 días de fiados)
+        // 6. Datos para el gráfico (últimos 7 días de fiados)
         const chartData = [];
         for (let i = 6; i >= 0; i--) {
             const dia = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - i);
@@ -366,6 +388,7 @@ exports.obtenerReportesTendero = async (req, res) => {
             const montoDia = await Fiado.sum('monto_total', {
                 where: {
                     tienda_id,
+                    ...(cliente_id && { cliente_id }), // Filtro de cliente también para el gráfico
                     creado_en: { [Op.gte]: dia, [Op.lt]: diaSiguiente }
                 }
             }) || 0;
@@ -388,7 +411,9 @@ exports.obtenerReportesTendero = async (req, res) => {
                 totalClientes,
                 totalProductos,
                 topProductos,
-                chartData // Enviamos los datos del gráfico
+                chartData,
+                listaFiados, // NUEVO: Lista para el PDF
+                listaCobros  // NUEVO: Lista para el PDF
             }
         });
 
