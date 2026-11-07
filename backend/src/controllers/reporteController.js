@@ -1,4 +1,4 @@
-const { Producto, Tienda, Categoria, Tendero, Fiado, Pago, ClienteTienda, FiadoDetalle, sequelize } = require('../models');
+const { Producto, Tienda, Categoria, Tendero, Cliente, Fiado, Pago, ClienteTienda, FiadoDetalle, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -209,29 +209,25 @@ exports.obtenerEstadisticas = async (req, res) => {
 
         const tiendasActivas = await Tienda.count({ where: { activo: true } });
         const tiendasInactivas = await Tienda.count({ where: { activo: false } });
-        
+
         const tenderosActivos = await Tendero.count({ where: { activo: true } });
         const tenderosInactivos = await Tendero.count({ where: { activo: false } });
 
-        // ─── 1. CRECIMIENTO CON EL FORMATO QUE ESPERA REACT ───
         const getGrowthData = async (Model) => {
             const records = await Model.findAll({ attributes: ['creado_en'], raw: true });
             const currentDate = new Date();
             const data = [];
-            
+
             for (let i = 5; i >= 0; i--) {
                 const d = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-                
-                // ✅ Formato "YYYY-MM" (ej: 2026-10) para que haga match con React
                 const mesKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                
+
                 const count = records.filter(r => {
                     if (!r.creado_en) return false;
                     const rd = new Date(r.creado_en);
                     return rd.getMonth() === d.getMonth() && rd.getFullYear() === d.getFullYear();
                 }).length;
-                
-                // ✅ Usamos "total" en lugar de "cantidad"
+
                 data.push({ mes: mesKey, total: count });
             }
             return data;
@@ -240,7 +236,6 @@ exports.obtenerEstadisticas = async (req, res) => {
         const crecimientoTiendas = await getGrowthData(Tienda);
         const crecimientoTenderos = await getGrowthData(Tendero);
 
-        // ─── 2. TABLA DE ÚLTIMOS TENDEROS ───
         const ultimosTenderosRaw = await Tendero.findAll({
             limit: 5,
             order: [['creado_en', 'DESC']],
@@ -259,7 +254,6 @@ exports.obtenerEstadisticas = async (req, res) => {
             ultima_actividad: t.creado_en
         }));
 
-        // ─── 3. RESPUESTA FINAL ───
         res.status(200).json({
             resumen: {
                 totalTiendas,
@@ -281,86 +275,125 @@ exports.obtenerEstadisticas = async (req, res) => {
 };
 
 // ═════════════════════════════════════════════════════════════════════════
-// OBTENER REPORTES Y ESTADÍSTICAS PARA LA APP DEL TENDERO
+// REPORTES PARA LA APP DEL TENDERO
 // GET /api/reportes/resumen-app?tienda_id=xxx&periodo=semana&cliente_id=yyy
 // ═════════════════════════════════════════════════════════════════════════
+
+// Perú es UTC-5 (sin horario de verano); el servidor está en UTC
+const OFFSET_PERU_MS = 5 * 60 * 60 * 1000;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Medianoche de Perú expresada en UTC. offsetDias = 0 es hoy.
+function inicioDiaPeru(offsetDias = 0) {
+    const p = new Date(Date.now() - OFFSET_PERU_MS);
+    return new Date(Date.UTC(p.getUTCFullYear(), p.getUTCMonth(), p.getUTCDate() - offsetDias, 5, 0, 0));
+}
+
+function inicioMesPeru() {
+    const p = new Date(Date.now() - OFFSET_PERU_MS);
+    return new Date(Date.UTC(p.getUTCFullYear(), p.getUTCMonth(), 1, 5, 0, 0));
+}
+
 exports.obtenerReportesTendero = async (req, res) => {
     try {
-        const { tienda_id, periodo, cliente_id } = req.query;
-        if (!tienda_id) {
-            return res.status(400).json({ error: 'El parámetro tienda_id es obligatorio.' });
+        const { tienda_id, periodo } = req.query;
+        const cliente_id = req.query.cliente_id && req.query.cliente_id !== 'all'
+            ? String(req.query.cliente_id)
+            : null;
+
+        if (!tienda_id || !UUID_REGEX.test(String(tienda_id))) {
+            return res.status(400).json({ error: 'El parámetro tienda_id es obligatorio y debe ser válido.' });
+        }
+        if (cliente_id && !UUID_REGEX.test(cliente_id)) {
+            return res.status(400).json({ error: 'El cliente_id no es válido.' });
+        }
+
+        // Validar que la tienda sea del usuario
+        const whereTienda = req.usuario.rol === 'admin'
+            ? { id: tienda_id }
+            : { id: tienda_id, tendero_id: req.usuario.id, activo: true };
+        const tienda = await Tienda.findOne({ where: whereTienda });
+        if (!tienda) {
+            return res.status(404).json({ error: 'Tienda no encontrada o no tienes permisos.' });
         }
 
         const estadosPendientes = { [Op.in]: ['pendiente', 'parcial'] };
-        
-        // 1. Calcular las fechas según el periodo seleccionado
-        const ahora = new Date();
-        let fechaInicio = null;
-        
-        if (periodo === 'hoy') {
-            fechaInicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
-        } else if (periodo === 'semana') {
-            fechaInicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - 7);
-        } else if (periodo === 'mes') {
-            fechaInicio = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-        }
 
-        const whereFiado = { tienda_id };
+        // 1. Fecha de inicio según el periodo
+        let fechaInicio = null;
+        if (periodo === 'hoy') fechaInicio = inicioDiaPeru(0);
+        else if (periodo === 'semana') fechaInicio = inicioDiaPeru(6);
+        else if (periodo === 'mes') fechaInicio = inicioMesPeru();
+
+        const whereFiado = { tienda_id, estado: { [Op.ne]: 'cancelado' } };
         const wherePago = { tienda_id };
-        
         if (fechaInicio) {
             whereFiado.creado_en = { [Op.gte]: fechaInicio };
             wherePago.fecha_pago = { [Op.gte]: fechaInicio };
         }
-
-        // FILTRO POR CLIENTE (Si viene en la URL)
         if (cliente_id) {
             whereFiado.cliente_id = cliente_id;
             wherePago.cliente_id = cliente_id;
         }
 
-        // 2. Traer las listas detalladas (Para los PDFs específicos)
-        const listaFiados = await Fiado.findAll({
+        const nombreCliente = (c) => ({
+            nombres: c ? c.nombres : '',
+            apellidos: c ? c.apellidos : ''
+        });
+
+        // 2. Listas (para los PDF). Se arman como objetos simples.
+        const fiadosDb = await Fiado.findAll({
             where: whereFiado,
             include: [{ model: Cliente, as: 'cliente', attributes: ['nombres', 'apellidos'] }],
-            order: [['creado_en', 'DESC']],
-            raw: true,
-            nest: true
+            order: [['creado_en', 'DESC']]
         });
+        const listaFiados = fiadosDb.map(f => ({
+            id: f.id,
+            creado_en: f.creado_en,
+            estado: f.estado,
+            monto_total: Number(f.monto_total),
+            monto_pagado: Number(f.monto_pagado || 0),
+            cliente: nombreCliente(f.cliente)
+        }));
 
-        const listaCobros = await Pago.findAll({
+        const pagosDb = await Pago.findAll({
             where: wherePago,
             include: [{ model: Cliente, as: 'cliente', attributes: ['nombres', 'apellidos'] }],
-            order: [['fecha_pago', 'DESC']],
-            raw: true,
-            nest: true
+            order: [['fecha_pago', 'DESC']]
         });
+        const listaCobros = pagosDb.map(p => ({
+            id: p.id,
+            fecha_pago: p.fecha_pago,
+            monto: Number(p.monto),
+            cliente: nombreCliente(p.cliente)
+        }));
 
-        // 3. Calcular Totales a partir de las listas filtradas
+        // 3. Totales
         const totalFiados = listaFiados.length;
-        const montoTotalFiado = listaFiados.reduce((sum, f) => sum + Number(f.monto_total), 0);
+        const montoTotalFiado = listaFiados.reduce((s, f) => s + f.monto_total, 0);
+        const totalCobros = listaCobros.length;
+        const montoTotalCobrado = listaCobros.reduce((s, p) => s + p.monto, 0);
 
-        // Calcular Fiados por Cobrar
-        const fiadosPendientesLista = await Fiado.findAll({
+        // Por cobrar: saldo actual (no depende del periodo, sí del cliente)
+        const pendientes = await Fiado.findAll({
             where: { tienda_id, estado: estadosPendientes, ...(cliente_id && { cliente_id }) },
             attributes: ['cliente_id', 'monto_total', 'monto_pagado'],
             raw: true
         });
-
         let porCobrar = 0;
         const clientesUnicos = new Set();
-        fiadosPendientesLista.forEach(f => {
-            porCobrar += (Number(f.monto_total) - Number(f.monto_pagado));
+        pendientes.forEach(f => {
+            porCobrar += Number(f.monto_total) - Number(f.monto_pagado);
             clientesUnicos.add(f.cliente_id);
         });
 
-        const totalCobros = listaCobros.length;
-        const montoTotalCobrado = listaCobros.reduce((sum, p) => sum + Number(p.monto), 0);
+        // 4. Top productos (solo obedece al periodo, no al cliente)
+        const whereFiadoTop = { tienda_id, estado: { [Op.ne]: 'cancelado' } };
+        if (fechaInicio) whereFiadoTop.creado_en = { [Op.gte]: fechaInicio };
 
-        // 4. Top Productos
-        const topProductosRaw = await FiadoDetalle.findAll({
+        const topRaw = await FiadoDetalle.findAll({
             include: [
-                { model: Fiado, as: 'fiado', where: whereFiado, attributes: [] },
+                { model: Fiado, as: 'fiado', where: whereFiadoTop, attributes: [] },
                 { model: Producto, as: 'producto', attributes: ['nombre'] }
             ],
             attributes: ['producto_id', [sequelize.fn('SUM', sequelize.col('cantidad')), 'total_vendido']],
@@ -369,51 +402,51 @@ exports.obtenerReportesTendero = async (req, res) => {
             limit: 10,
             raw: true
         });
-
-        const topProductos = topProductosRaw.map(p => ({
+        const topProductos = topRaw.map(p => ({
             nombre: p['producto.nombre'],
             cantidad: Number(p.total_vendido)
         }));
 
-        // 5. Totales para el Perfil
+        // 5. Totales del perfil
         const totalClientes = await ClienteTienda.count({ where: { tienda_id, activo: true } });
         const totalProductos = await Producto.count({ where: { tienda_id, activo: true } });
 
-        // 6. Datos para el gráfico (últimos 7 días de fiados)
+        // 6. Gráfico: últimos 7 días, una sola consulta, días en hora de Perú
+        const fiadosGrafico = await Fiado.findAll({
+            where: {
+                tienda_id,
+                estado: { [Op.ne]: 'cancelado' },
+                ...(cliente_id && { cliente_id }),
+                creado_en: { [Op.gte]: inicioDiaPeru(6) }
+            },
+            attributes: ['creado_en', 'monto_total'],
+            raw: true
+        });
+
+        const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
         const chartData = [];
         for (let i = 6; i >= 0; i--) {
-            const dia = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - i);
-            const diaSiguiente = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - i + 1);
-            
-            const montoDia = await Fiado.sum('monto_total', {
-                where: {
-                    tienda_id,
-                    ...(cliente_id && { cliente_id }), // Filtro de cliente también para el gráfico
-                    creado_en: { [Op.gte]: dia, [Op.lt]: diaSiguiente }
-                }
-            }) || 0;
-
-            const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-            chartData.push({
-                dia: diasSemana[dia.getDay()],
-                monto: Number(montoDia)
-            });
+            const ini = inicioDiaPeru(i).getTime();
+            const fin = ini + 24 * 60 * 60 * 1000;
+            const monto = fiadosGrafico
+                .filter(f => {
+                    const t = new Date(f.creado_en).getTime();
+                    return t >= ini && t < fin;
+                })
+                .reduce((s, f) => s + Number(f.monto_total), 0);
+            const diaPeru = new Date(ini - OFFSET_PERU_MS);
+            chartData.push({ dia: diasSemana[diaPeru.getUTCDay()], monto });
         }
 
         res.status(200).json({
             resumen: {
-                totalFiados,
-                montoTotalFiado,
-                porCobrar,
+                version: 'reportes-v2',
+                filtros: { periodo: periodo || 'todo', cliente_id },
+                totalFiados, montoTotalFiado, porCobrar,
                 clientesPendientes: clientesUnicos.size,
-                totalCobros,
-                montoTotalCobrado,
-                totalClientes,
-                totalProductos,
-                topProductos,
-                chartData,
-                listaFiados, // NUEVO: Lista para el PDF
-                listaCobros  // NUEVO: Lista para el PDF
+                totalCobros, montoTotalCobrado,
+                totalClientes, totalProductos,
+                topProductos, chartData, listaFiados, listaCobros
             }
         });
 
