@@ -164,7 +164,7 @@ const VendorsPage = () => {
       }
       toast.success(
         nuevoEstado ? 'Plan Premium activado' : 'Plan Premium desactivado',
-        `"${vendor.nombres} ${vendor.apellidos}" ahora tiene suscripción ${nuevoEstado ? 'Premium ⭐' : 'Estándar'}.`
+        `"${vendor.nombres} ${vendor.apellidos}" ahora tiene suscripción ${nuevoEstado ? 'Premium' : 'Estándar'}.`
       );
     } catch (err) {
       toast.error('Error al actualizar plan', err.message || 'No se pudo cambiar el estado premium del tendero');
