@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Loader2, AlertCircle, User } from 'lucide-react';
-import { getTenderos, getCachedTenderos, createTendero, updateTendero, deleteTendero, toggleTenderoActivo } from '@/services/vendorService';
+import { getTenderos, getCachedTenderos, createTendero, updateTendero, deleteTendero, toggleTenderoActivo, toggleTenderoPremium } from '@/services/vendorService';
 import { useToast } from '@/context/ToastContext';
 import VendorsHeader from '@/components/modules/Vendors/VendorsHeader';
 import VendorsFilters from '@/components/modules/Vendors/VendorsFilters';
@@ -18,12 +18,14 @@ const VendorsPage = () => {
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [premiumFilter, setPremiumFilter] = useState('all');
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentVendor, setCurrentVendor] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState(null);
+  const [premiumLoadingId, setPremiumLoadingId] = useState(null);
   const [modalError, setModalError] = useState('');
 
   // Detalle en página y Eliminación
@@ -149,6 +151,28 @@ const VendorsPage = () => {
     }
   };
 
+  const handleTogglePremium = async (vendor) => {
+    setPremiumLoadingId(vendor.id);
+    const nuevoEstado = !vendor.es_premium;
+    try {
+      await toggleTenderoPremium(vendor.id, nuevoEstado);
+      setVendors((prev) =>
+        prev.map((v) => (v.id === vendor.id ? { ...v, es_premium: nuevoEstado } : v))
+      );
+      if (selectedVendorDetails && selectedVendorDetails.id === vendor.id) {
+        setSelectedVendorDetails((prev) => ({ ...prev, es_premium: nuevoEstado }));
+      }
+      toast.success(
+        nuevoEstado ? 'Plan Premium activado' : 'Plan Premium desactivado',
+        `"${vendor.nombres} ${vendor.apellidos}" ahora tiene suscripción ${nuevoEstado ? 'Premium ⭐' : 'Estándar'}.`
+      );
+    } catch (err) {
+      toast.error('Error al actualizar plan', err.message || 'No se pudo cambiar el estado premium del tendero');
+    } finally {
+      setPremiumLoadingId(null);
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!vendorToDelete) return;
     setIsDeleting(true);
@@ -173,6 +197,7 @@ const VendorsPage = () => {
   const handleClearFilters = () => {
     setSearchTerm('');
     setStatusFilter('all');
+    setPremiumFilter('all');
   };
 
   const filteredVendors = useMemo(() => {
@@ -192,9 +217,13 @@ const VendorsPage = () => {
       const matchStatus =
         statusFilter === 'all' || (statusFilter === 'active' ? vendor.activo : !vendor.activo);
 
-      return matchSearch && matchStatus;
+      const matchPremium =
+        premiumFilter === 'all' ||
+        (premiumFilter === 'premium' ? Boolean(vendor.es_premium) : !vendor.es_premium);
+
+      return matchSearch && matchStatus && matchPremium;
     });
-  }, [vendors, searchTerm, statusFilter]);
+  }, [vendors, searchTerm, statusFilter, premiumFilter]);
 
   return (
     <div className="space-y-4 animate-fade-soft">
@@ -206,6 +235,8 @@ const VendorsPage = () => {
           onEdit={openModal}
           onDelete={setVendorToDelete}
           onToggleStatus={handleToggleStatus}
+          onTogglePremium={handleTogglePremium}
+          isPremiumLoading={premiumLoadingId === selectedVendorDetails.id}
         />
       ) : (
         <>
@@ -216,6 +247,8 @@ const VendorsPage = () => {
             onSearchChange={setSearchTerm}
             statusFilter={statusFilter}
             onStatusChange={setStatusFilter}
+            premiumFilter={premiumFilter}
+            onPremiumChange={setPremiumFilter}
             onClearFilters={handleClearFilters}
             onOpenModal={openModal}
           />
@@ -248,7 +281,9 @@ const VendorsPage = () => {
               onView={setSelectedVendorDetails}
               onDelete={setVendorToDelete}
               onToggleStatus={handleToggleStatus}
+              onTogglePremium={handleTogglePremium}
               actionLoadingId={actionLoadingId}
+              premiumLoadingId={premiumLoadingId}
             />
           )}
         </>

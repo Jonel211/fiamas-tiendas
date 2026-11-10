@@ -46,6 +46,16 @@ export const toggleTenderoActivo = async (id) => {
   return data;
 };
 
+// Alternar o actualizar estado premium del tendero
+export const toggleTenderoPremium = async (id, es_premium) => {
+  cachedTenderos = null;
+  const data = await apiRequest(`/tenderos/${id}/premium`, {
+    method: 'PATCH',
+    body: JSON.stringify({ es_premium }),
+  });
+  return data;
+};
+
 // Eliminar un tendero
 export const deleteTendero = async (id) => {
   cachedTenderos = null;
