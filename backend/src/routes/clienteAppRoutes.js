@@ -27,4 +27,8 @@ router.get('/mi-resumen', verificarToken, verificarRol(['cliente']), clienteAppC
 // 5. PAGOS
 router.get('/mis-pagos', verificarToken, verificarRol(['cliente']), clienteAppController.misPagos);
 
+// 6. VINCULACIÓN CON TIENDA POR QR
+router.get('/tienda-qr/:token', verificarToken, verificarRol(['cliente']), clienteAppController.obtenerTiendaPorQR);
+router.post('/vincular-tienda', verificarToken, verificarRol(['cliente']), clienteAppController.vincularTiendaPorQR);
+
 module.exports = router;

@@ -453,3 +453,146 @@ exports.misPagos = async (req, res) => {
         res.status(500).json({ error: 'Error interno al obtener los pagos.' });
     }
 };
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 7. OBTENER INFORMACIÓN DE TIENDA POR TOKEN QR
+// GET /api/app-cliente/tienda-qr/:token
+// ═══════════════════════════════════════════════════════════════════════════
+exports.obtenerTiendaPorQR = async (req, res) => {
+    try {
+        const clienteId = req.usuario.id;
+        let { token } = req.params;
+
+        if (token && typeof token === 'string') {
+            const uuidMatch = token.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+            if (uuidMatch) token = uuidMatch[0];
+        }
+
+        if (!token || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)) {
+            return res.status(400).json({ error: 'El código QR no es válido.' });
+        }
+
+        const tienda = await Tienda.findOne({
+            where: { qr_token: token, qr_activo: true, activo: true },
+            attributes: ['id', 'nombre', 'direccion', 'telefono', 'imagen_url', 'ruc']
+        });
+
+        if (!tienda) {
+            return res.status(404).json({ error: 'La tienda no existe o el código QR ha expirado o está inactivo.' });
+        }
+
+        const vinculo = await ClienteTienda.findOne({
+            where: { cliente_id: clienteId, tienda_id: tienda.id, activo: true }
+        });
+
+        return res.status(200).json({
+            msg: 'Tienda encontrada.',
+            tienda: {
+                id: tienda.id,
+                nombre: tienda.nombre,
+                direccion: tienda.direccion,
+                telefono: tienda.telefono,
+                imagen_url: tienda.imagen_url,
+                ruc: tienda.ruc
+            },
+            ya_vinculado: !!vinculo
+        });
+    } catch (error) {
+        console.error('Error al consultar tienda por QR:', error);
+        return res.status(500).json({ error: 'Error interno al consultar la tienda.' });
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 8. VINCULAR CLIENTE A TIENDA POR QR
+// POST /api/app-cliente/vincular-tienda
+// ═══════════════════════════════════════════════════════════════════════════
+exports.vincularTiendaPorQR = async (req, res) => {
+    try {
+        const clienteId = req.usuario.id;
+        let { token } = req.body;
+
+        if (token && typeof token === 'string') {
+            const uuidMatch = token.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+            if (uuidMatch) token = uuidMatch[0];
+        }
+
+        if (!token || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)) {
+            return res.status(400).json({ error: 'El código o token QR de la tienda no es válido.' });
+        }
+
+        const tienda = await Tienda.findOne({
+            where: { qr_token: token, qr_activo: true, activo: true }
+        });
+
+        if (!tienda) {
+            return res.status(404).json({ error: 'El QR de la tienda no existe, fue desactivado o ya cambió.' });
+        }
+
+        const cliente = await Cliente.findByPk(clienteId);
+        if (!cliente || !cliente.activo) {
+            return res.status(403).json({ error: 'Cuenta de cliente no encontrada o inactiva.' });
+        }
+
+        let vinculo = await ClienteTienda.findOne({
+            where: { cliente_id: clienteId, tienda_id: tienda.id }
+        });
+
+        if (vinculo) {
+            if (vinculo.activo) {
+                return res.status(200).json({
+                    msg: 'Ya estás vinculado con "' + tienda.nombre + '".',
+                    ya_vinculado: true,
+                    tienda: {
+                        id: tienda.id,
+                        nombre: tienda.nombre,
+                        direccion: tienda.direccion,
+                        telefono: tienda.telefono
+                    }
+                });
+            } else {
+                await vinculo.update({
+                    activo: true,
+                    metodo_vinculacion: 'qr',
+                    actualizado_en: new Date()
+                });
+                return res.status(200).json({
+                    msg: 'Te has revinculado exitosamente con "' + tienda.nombre + '".',
+                    ya_vinculado: false,
+                    tienda: {
+                        id: tienda.id,
+                        nombre: tienda.nombre,
+                        direccion: tienda.direccion,
+                        telefono: tienda.telefono
+                    }
+                });
+            }
+        }
+
+        vinculo = await ClienteTienda.create({
+            cliente_id: clienteId,
+            tienda_id: tienda.id,
+            limite_credito: 1000,
+            saldo_actual: 0,
+            score_pagador: 100,
+            categoria_pagador: 'nuevo',
+            metodo_vinculacion: 'qr',
+            activo: true
+        });
+
+        return res.status(201).json({
+            msg: '¡Te has vinculado exitosamente con "' + tienda.nombre + '"!',
+            ya_vinculado: false,
+            tienda: {
+                id: tienda.id,
+                nombre: tienda.nombre,
+                direccion: tienda.direccion,
+                telefono: tienda.telefono
+            }
+        });
+    } catch (error) {
+        console.error('Error al vincular cliente con tienda por QR:', error);
+        return res.status(500).json({ error: 'Error interno al vincular con la tienda.' });
+    }
+};
