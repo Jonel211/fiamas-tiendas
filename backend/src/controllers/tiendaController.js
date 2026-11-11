@@ -51,6 +51,24 @@ exports.crearTiendaAdmin = async (req, res) => {
             return res.status(400).json({ error: 'El nombre de la tienda y el tendero_id son obligatorios.' });
         }
 
+        const tendero = await Tendero.findByPk(tendero_id);
+        if (!tendero) {
+            return res.status(404).json({ error: 'El tendero especificado no existe.' });
+        }
+
+        //  FASE 2: Lógica Premium para creación de tiendas
+        if (req.usuario.rol !== 'admin') {
+            const tiendasExistentes = await Tienda.count({
+                where: { tendero_id: tendero_id, activo: true }
+            });
+
+            if (!tendero.es_premium && tiendasExistentes >= 1) {
+                return res.status(403).json({
+                    error: 'El plan gratuito está limitado a 1 tienda. Actualiza a Premium para crear tiendas ilimitadas.'
+                });
+            }
+        }
+
         const rucLimpio = ruc !== undefined && ruc !== null ? String(ruc).trim() : '';
         if (rucLimpio !== '' && !/^\d{11}$/.test(rucLimpio)) {
             return res.status(400).json({ error: 'El RUC debe tener exactamente 11 dígitos numéricos.' });
@@ -59,11 +77,6 @@ exports.crearTiendaAdmin = async (req, res) => {
         const telLimpio = telefono !== undefined && telefono !== null ? String(telefono).trim() : '';
         if (telLimpio !== '' && !/^\d{9}$/.test(telLimpio)) {
             return res.status(400).json({ error: 'El teléfono debe tener exactamente 9 dígitos numéricos.' });
-        }
-
-        const tendero = await Tendero.findByPk(tendero_id);
-        if (!tendero) {
-            return res.status(404).json({ error: 'El tendero especificado no existe.' });
         }
 
         const nuevaTienda = await Tienda.create({
