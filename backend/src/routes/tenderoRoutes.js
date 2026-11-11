@@ -105,4 +105,10 @@ router.delete(
     tenderoController.eliminarTenderoAdmin
 );
 
+// 8. verificar duplicados en tiempo real 
+router.get(
+    '/verificar-duplicado',
+    tenderoController.verificarDuplicado
+);
+
 module.exports = router;

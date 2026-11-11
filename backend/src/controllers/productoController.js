@@ -41,14 +41,44 @@ exports.crearProducto = async (req, res) => {
             return res.status(400).json({ error: 'La categoría no existe o no pertenece a esta tienda.' });
         }
 
+        // VALIDACIÓN ROBUSTA DE NOMBRE ÚNICO
+        const nombreLimpio = String(nombre).trim();
+        const nombreNormalizado = nombreLimpio.toLowerCase(); // Normalizar a minúsculas
+
+        console.log(' Buscando producto duplicado:', { nombre: nombreNormalizado, tienda_id });
+
+        const productoExistente = await Producto.findOne({
+            where: {
+                tienda_id: tienda_id,
+                [Op.where]: sequelize.where(
+                    sequelize.fn('LOWER', sequelize.col('nombre')),
+                    nombreNormalizado
+                )
+            }
+        });
+
+        if (productoExistente) {
+            console.log(' PRODUCTO DUPLICADO ENCONTRADO:', productoExistente.nombre);
+            return res.status(409).json({
+                error: 'Ya existe un producto con este nombre en esta tienda.'
+            });
+        }
+
+        // Validación de código de barras único
         if (codigoBarras) {
-            const productoExistente = await Producto.findOne({ where: { codigo_barras: codigoBarras, tienda_id } });
-            if (productoExistente) {
-                return res.status(409).json({ error: ERROR_CODIGO_BARRAS_DUPLICADO });
+            const productoConCodigo = await Producto.findOne({
+                where: {
+                    codigo_barras: codigoBarras,
+                    tienda_id: tienda_id
+                }
+            });
+            if (productoConCodigo) {
+                return res.status(409).json({
+                    error: 'Ya existe un producto con ese código de barras en esta tienda.'
+                });
             }
         }
 
-        // ✅ LÓGICA DE SUBIDA A CLOUDINARY
         let imagen_url = null;
         if (req.file) {
             const b64 = Buffer.from(req.file.buffer).toString('base64');
@@ -62,7 +92,7 @@ exports.crearProducto = async (req, res) => {
         }
 
         const nuevoProducto = await Producto.create({
-            nombre: nombre.trim(),
+            nombre: nombreLimpio,
             descripcion: descripcion ? descripcion.trim() : null,
             tienda_id,
             categoria_id,
@@ -82,19 +112,25 @@ exports.crearProducto = async (req, res) => {
             }]
         });
 
+        console.log(' Producto creado exitosamente:', productoCreado.nombre);
+
         res.status(201).json({
             msg: 'Producto creado exitosamente.',
             producto: productoCreado
         });
     } catch (error) {
-        console.error('Error al crear producto:', error);
+        console.error(' Error al crear producto:', error);
+
+        // Manejar error de índice único de la base de datos
         if (error.name === 'SequelizeUniqueConstraintError') {
-            return res.status(409).json({ error: ERROR_CODIGO_BARRAS_DUPLICADO });
+            return res.status(409).json({
+                error: 'Ya existe un producto con este nombre o código de barras en esta tienda.'
+            });
         }
+
         res.status(500).json({ error: 'Error interno al crear el producto.' });
     }
 };
-
 // ══════════════════════════════════════════════════════════════════════════
 // 2. LISTAR PRODUCTOS DE UNA TIENDA
 // ══════════════════════════════════════════════════════════════════════════

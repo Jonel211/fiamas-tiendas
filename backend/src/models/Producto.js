@@ -74,12 +74,20 @@ const Producto = sequelize.define('Producto', {
 }, {
     tableName: 'productos',
     timestamps: false,
-    indexes: [{
-        name: 'productos_tienda_codigo_barras_uq',
-        unique: true,
-        fields: ['tienda_id', 'codigo_barras'],
-        where: { codigo_barras: { [Op.ne]: null } }
-    }]
+    indexes: [
+        {
+            name: 'productos_tienda_codigo_barras_uq',
+            unique: true,
+            fields: ['tienda_id', 'codigo_barras'],
+            where: { codigo_barras: { [Op.ne]: null } }
+        },
+        {
+            //  ÍNDICE ÚNICO: No permite dos productos con el mismo nombre en la misma tienda
+            name: 'productos_tienda_nombre_uq',
+            unique: true,
+            fields: ['tienda_id', 'nombre']
+        }
+    ]
 });
 
 module.exports = Producto;
