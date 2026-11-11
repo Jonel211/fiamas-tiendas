@@ -3,7 +3,49 @@ const { Op } = require('sequelize');
 const crypto = require('crypto');
 const { subirImagen } = require('../utils/cloudinaryUpload');
 
-// 0. OBTENER TODOS LOS TENDEROS (PANEL ADMIN)
+// VERIFICAR DUPLICADOS EN TIEMPO REAL
+exports.verificarDuplicado = async (req, res) => {
+    try {
+        const { dni, telefono } = req.query;
+
+        if (!dni && !telefono) {
+            return res.status(400).json({ existe: false, mensaje: 'Debe proporcionar dni o telefono' });
+        }
+
+        let existe = false;
+        let mensaje = '';
+
+        if (dni) {
+            const dniLimpio = String(dni).trim();
+            const existeDni = await Tendero.findOne({ where: { dni: dniLimpio } });
+
+            if (existeDni) {
+                existe = true;
+                mensaje = 'El DNI ya está registrado';
+            }
+        }
+
+        if (!existe && telefono) {
+            const telLimpio = String(telefono).trim();
+            const existeTel = await Tendero.findOne({ where: { telefono: telLimpio } });
+
+            if (existeTel) {
+                existe = true;
+                mensaje = 'El teléfono ya está registrado';
+            }
+        }
+
+        return res.status(200).json({
+            existe,
+            mensaje: mensaje || 'No existen duplicados'
+        });
+    } catch (error) {
+        console.error('Error en verificarDuplicado:', error);
+        return res.status(500).json({ existe: false, mensaje: 'Error interno al verificar duplicados' });
+    }
+};
+
+// OBTENER TODOS LOS TENDEROS (PANEL ADMIN)
 exports.getTenderosAdmin = async (req, res) => {
     try {
         const tenderos = await Tendero.findAll({
@@ -11,14 +53,14 @@ exports.getTenderosAdmin = async (req, res) => {
             include: [{ model: Tienda, as: 'tiendas', attributes: ['id', 'nombre', 'ruc', 'direccion', 'activo', 'qr_activo'] }],
             order: [['creado_en', 'DESC']]
         });
-        res.status(200).json({ msg: 'Listado de tenderos obtenido exitosamente', tenderos });
+        return res.status(200).json({ msg: 'Listado de tenderos obtenido exitosamente', tenderos });
     } catch (error) {
         console.error('Error al obtener tenderos:', error);
-        res.status(500).json({ error: 'Error interno al obtener los tenderos.' });
+        return res.status(500).json({ error: 'Error interno al obtener los tenderos.' });
     }
 };
 
-// 0.1 CREAR TENDERO (PANEL ADMIN)
+// CREAR TENDERO (PANEL ADMIN O REGISTRO MÓVIL)
 exports.crearTenderoAdmin = async (req, res) => {
     try {
         const { dni, nombres, apellidos, telefono, password, activo, nombre_tienda, foto_perfil_url } = req.body;
@@ -33,30 +75,34 @@ exports.crearTenderoAdmin = async (req, res) => {
 
         const telLimpio = String(telefono).trim();
         if (!/^\d{9}$/.test(telLimpio)) {
-            return res.status(400).json({ error: 'El teléfono debe tener exactamente 9 dígitos numéricos (ej. 987654321).' });
+            return res.status(400).json({ error: 'El teléfono debe tener exactamente 9 dígitos numéricos.' });
+        }
+
+        if (password.length > 6 || password.length < 4) {
+            return res.status(400).json({ error: 'La contraseña debe tener entre 4 y 6 caracteres.' });
         }
 
         const [existeDni, existeTel] = await Promise.all([
             Tendero.findOne({ where: { dni: dniLimpio } }),
             Tendero.findOne({ where: { telefono: telLimpio } })
         ]);
+
         if (existeDni) return res.status(400).json({ error: 'Ya existe un tendero registrado con ese DNI.' });
         if (existeTel) return res.status(400).json({ error: 'Ya existe un tendero registrado con ese número de teléfono.' });
 
         const nuevoTendero = await Tendero.create({
             dni: dniLimpio,
-            nombres,
-            apellidos,
+            nombres: nombres.trim(),
+            apellidos: apellidos.trim(),
             telefono: telLimpio,
             foto_perfil_url: foto_perfil_url || null,
             password_hash: password,
             activo: activo !== undefined ? activo : true
         });
 
-        // Crear tienda asociada si se especificó o por defecto
         const nuevaTienda = await Tienda.create({
             tendero_id: nuevoTendero.id,
-            nombre: nombre_tienda || `Tienda de ${nombres}`,
+            nombre: nombre_tienda ? nombre_tienda.trim() : `Tienda de ${nombres.trim()}`,
             telefono: telLimpio,
             qr_token: crypto.randomUUID(),
             qr_activo: true,
@@ -68,7 +114,7 @@ exports.crearTenderoAdmin = async (req, res) => {
             include: [{ model: Tienda, as: 'tiendas' }]
         });
 
-        res.status(201).json({
+        return res.status(201).json({
             msg: 'Tendero registrado exitosamente',
             tendero: tenderoConTiendas,
             tienda: nuevaTienda
@@ -81,11 +127,11 @@ exports.crearTenderoAdmin = async (req, res) => {
         if (error.name === 'SequelizeValidationError') {
             return res.status(400).json({ error: error.errors?.[0]?.message || 'Datos de tendero inválidos.' });
         }
-        res.status(500).json({ error: error.message || 'Error interno al registrar el tendero.' });
+        return res.status(500).json({ error: 'Error interno al registrar el tendero.' });
     }
 };
 
-// 0.2 ACTUALIZAR TENDERO POR ID (PANEL ADMIN)
+// ACTUALIZAR TENDERO POR ID (PANEL ADMIN)
 exports.actualizarTenderoAdmin = async (req, res) => {
     try {
         const { id } = req.params;
@@ -119,13 +165,17 @@ exports.actualizarTenderoAdmin = async (req, res) => {
         }
 
         const datosActualizacion = {};
-        if (dni !== undefined) datosActualizacion.dni = dni;
-        if (nombres !== undefined) datosActualizacion.nombres = nombres;
-        if (apellidos !== undefined) datosActualizacion.apellidos = apellidos;
-        if (telefono !== undefined) datosActualizacion.telefono = telefono;
+        if (dni !== undefined) datosActualizacion.dni = String(dni).trim();
+        if (nombres !== undefined) datosActualizacion.nombres = nombres.trim();
+        if (apellidos !== undefined) datosActualizacion.apellidos = apellidos.trim();
+        if (telefono !== undefined) datosActualizacion.telefono = String(telefono).trim();
         if (activo !== undefined) datosActualizacion.activo = activo;
         if (foto_perfil_url !== undefined) datosActualizacion.foto_perfil_url = foto_perfil_url;
+
         if (password && password.trim() !== '') {
+            if (password.length > 6 || password.length < 4) {
+                return res.status(400).json({ error: 'La contraseña debe tener entre 4 y 6 caracteres.' });
+            }
             datosActualizacion.password_hash = password;
         }
         datosActualizacion.actualizado_en = new Date();
@@ -137,17 +187,17 @@ exports.actualizarTenderoAdmin = async (req, res) => {
             include: [{ model: Tienda, as: 'tiendas' }]
         });
 
-        res.status(200).json({
+        return res.status(200).json({
             msg: 'Tendero actualizado exitosamente',
             tendero: tenderoActualizado
         });
     } catch (error) {
         console.error('Error al actualizar tendero:', error);
-        res.status(500).json({ error: 'Error interno al actualizar el tendero.' });
+        return res.status(500).json({ error: 'Error interno al actualizar el tendero.' });
     }
 };
 
-// 0.3 ALTERNAR ESTADO ACTIVO TENDERO (PANEL ADMIN)
+// ALTERNAR ESTADO ACTIVO TENDERO (PANEL ADMIN)
 exports.toggleActivoTenderoAdmin = async (req, res) => {
     try {
         const { id } = req.params;
@@ -163,17 +213,17 @@ exports.toggleActivoTenderoAdmin = async (req, res) => {
             actualizado_en: new Date()
         });
 
-        res.status(200).json({
+        return res.status(200).json({
             msg: `Tendero ${nuevoEstado ? 'activado' : 'desactivado'} exitosamente`,
             activo: nuevoEstado
         });
     } catch (error) {
         console.error('Error al cambiar estado del tendero:', error);
-        res.status(500).json({ error: 'Error interno al cambiar estado del tendero.' });
+        return res.status(500).json({ error: 'Error interno al cambiar estado del tendero.' });
     }
 };
 
-// PATCH /api/tenderos/:id/premium (solo admin)
+// ACTUALIZAR ESTADO PREMIUM (PANEL ADMIN)
 exports.actualizarPremium = async (req, res) => {
     let t;
     try {
@@ -187,12 +237,14 @@ exports.actualizarPremium = async (req, res) => {
             attributes: ['id', 'nombres', 'apellidos', 'telefono', 'es_premium'],
             transaction: t
         });
+
         if (!tendero) {
             await t.rollback();
             return res.status(404).json({ error: 'Tendero no encontrado.' });
         }
 
         await tendero.update({ es_premium, actualizado_en: new Date() }, { transaction: t });
+
         await LogSistema.create({
             usuario_id: req.usuario.id,
             tipo_usuario: 'admin',
@@ -203,18 +255,18 @@ exports.actualizarPremium = async (req, res) => {
 
         await t.commit();
 
-        res.status(200).json({
+        return res.status(200).json({
             msg: 'Estado premium del tendero actualizado exitosamente.',
             tendero
         });
     } catch (error) {
         if (t && !t.finished) await t.rollback();
         console.error('Error al actualizar estado premium del tendero:', error);
-        res.status(500).json({ error: 'Error interno al actualizar el estado premium del tendero.' });
+        return res.status(500).json({ error: 'Error interno al actualizar el estado premium del tendero.' });
     }
 };
 
-// 0.4 ELIMINAR TENDERO (PANEL ADMIN)
+// ELIMINAR TENDERO (PANEL ADMIN)
 exports.eliminarTenderoAdmin = async (req, res) => {
     const t = await sequelize.transaction();
     try {
@@ -226,7 +278,6 @@ exports.eliminarTenderoAdmin = async (req, res) => {
             return res.status(404).json({ error: 'Tendero no encontrado.' });
         }
 
-        // Buscar todas las tiendas asociadas al tendero
         const tiendas = await Tienda.findAll({ where: { tendero_id: id }, attributes: ['id'], transaction: t });
         const tiendaIds = tiendas.map(ti => ti.id);
 
@@ -249,7 +300,6 @@ exports.eliminarTenderoAdmin = async (req, res) => {
             await Tienda.destroy({ where: { id: { [Op.in]: tiendaIds } }, transaction: t });
         }
 
-        // Limpiar cualquier fiado o pago residual registrado por este tendero
         const fiadosResiduales = await Fiado.findAll({ where: { tendero_id: id }, attributes: ['id'], transaction: t });
         const fiadosResidualesIds = fiadosResiduales.map(f => f.id);
         if (fiadosResidualesIds.length > 0) {
@@ -262,15 +312,15 @@ exports.eliminarTenderoAdmin = async (req, res) => {
         await tendero.destroy({ transaction: t });
 
         await t.commit();
-        res.status(200).json({ msg: 'Tendero eliminado exitosamente', id });
+        return res.status(200).json({ msg: 'Tendero eliminado exitosamente', id });
     } catch (error) {
         await t.rollback();
         console.error('Error al eliminar tendero:', error);
-        res.status(500).json({ error: 'Error interno al eliminar el tendero.' });
+        return res.status(500).json({ error: 'Error interno al eliminar el tendero.' });
     }
 };
 
-// 1. OBTENER PERFIL DEL TENDERO
+// OBTENER PERFIL DEL TENDERO
 exports.getPerfil = async (req, res) => {
     try {
         const tenderoId = req.usuario.id;
@@ -292,17 +342,17 @@ exports.getPerfil = async (req, res) => {
             return res.status(404).json({ error: 'Tendero no encontrado.' });
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             msg: 'Perfil del tendero',
             tendero
         });
     } catch (error) {
         console.error('Error al obtener perfil:', error);
-        res.status(500).json({ error: 'Error interno al obtener el perfil.' });
+        return res.status(500).json({ error: 'Error interno al obtener el perfil.' });
     }
 };
 
-// 1.1 SUBIR FOTO DE PERFIL
+// SUBIR FOTO DE PERFIL
 exports.subirFotoPerfil = async (req, res) => {
     try {
         if (!req.file) {
@@ -312,6 +362,7 @@ exports.subirFotoPerfil = async (req, res) => {
         const tendero = await Tendero.findOne({
             where: { id: req.usuario.id, activo: true }
         });
+
         if (!tendero) {
             return res.status(404).json({ error: 'Tendero no encontrado.' });
         }
@@ -319,18 +370,17 @@ exports.subirFotoPerfil = async (req, res) => {
         const url = await subirImagen(req.file, 'fiamas_app/tenderos');
         await tendero.update({ foto_perfil_url: url, actualizado_en: new Date() });
 
-        res.status(200).json({
+        return res.status(200).json({
             msg: 'Foto de perfil actualizada',
             foto_perfil_url: url
         });
     } catch (error) {
         console.error('Error al subir foto de perfil:', error);
-        res.status(500).json({ error: 'Error interno al subir la foto.' });
+        return res.status(500).json({ error: 'Error interno al subir la foto.' });
     }
 };
 
-// 2. ACTUALIZAR PERFIL DEL TENDERO
-// Según el esquema de la BD (scripts/base-datos.md), los campos editables son nombres, apellidos y teléfono.
+// ACTUALIZAR PERFIL DEL TENDERO
 exports.actualizarPerfil = async (req, res) => {
     try {
         const tenderoId = req.usuario.id;
@@ -341,7 +391,6 @@ exports.actualizarPerfil = async (req, res) => {
             return res.status(404).json({ error: 'Tendero no encontrado.' });
         }
 
-        // Si cambia el teléfono, verificar que no exista en otro tendero
         if (telefono && telefono !== tendero.telefono) {
             const existente = await Tendero.findOne({ where: { telefono, activo: true, id: { [Op.ne]: tenderoId } } });
             if (existente) {
@@ -350,15 +399,15 @@ exports.actualizarPerfil = async (req, res) => {
         }
 
         const datosActualizacion = {};
-        if (nombres !== undefined) datosActualizacion.nombres = nombres;
-        if (apellidos !== undefined) datosActualizacion.apellidos = apellidos;
-        if (telefono !== undefined) datosActualizacion.telefono = telefono;
+        if (nombres !== undefined) datosActualizacion.nombres = nombres.trim();
+        if (apellidos !== undefined) datosActualizacion.apellidos = apellidos.trim();
+        if (telefono !== undefined) datosActualizacion.telefono = String(telefono).trim();
         if (foto_perfil_url !== undefined) datosActualizacion.foto_perfil_url = foto_perfil_url;
         datosActualizacion.actualizado_en = new Date();
 
         await tendero.update(datosActualizacion);
 
-                res.status(200).json({
+        return res.status(200).json({
             msg: 'Perfil actualizado exitosamente',
             tendero: {
                 id: tendero.id,
@@ -371,11 +420,11 @@ exports.actualizarPerfil = async (req, res) => {
         });
     } catch (error) {
         console.error('Error al actualizar perfil:', error);
-        res.status(500).json({ error: 'Error interno al actualizar el perfil.' });
+        return res.status(500).json({ error: 'Error interno al actualizar el perfil.' });
     }
 };
 
-// 3. CAMBIAR CONTRASEÑA
+// CAMBIAR CONTRASEÑA
 exports.cambiarPassword = async (req, res) => {
     try {
         const tenderoId = req.usuario.id;
@@ -385,24 +434,25 @@ exports.cambiarPassword = async (req, res) => {
             return res.status(400).json({ error: 'Se requiere la contraseña actual y la nueva.' });
         }
 
+        if (password_nuevo.length > 6 || password_nuevo.length < 4) {
+            return res.status(400).json({ error: 'La nueva contraseña debe tener entre 4 y 6 caracteres.' });
+        }
+
         const tendero = await Tendero.findOne({ where: { id: tenderoId, activo: true } });
         if (!tendero) {
             return res.status(404).json({ error: 'Tendero no encontrado.' });
         }
 
-        // Validar password actual
         const esValida = await tendero.validarPassword(password_actual);
         if (!esValida) {
             return res.status(400).json({ error: 'La contraseña actual es incorrecta.' });
         }
 
-        // Actualizar password (el hook del modelo lo encriptará con bcrypt)
         await tendero.update({
             password_hash: password_nuevo,
             actualizado_en: new Date()
         });
 
-        // Sincronizar contraseña con cuenta cliente vinculada al mismo teléfono (si existe)
         if (tendero.telefono) {
             try {
                 const clienteVinculado = await Cliente.findOne({ where: { telefono: tendero.telefono, activo: true } });
@@ -412,48 +462,42 @@ exports.cambiarPassword = async (req, res) => {
                         actualizado_en: new Date()
                     });
                 }
-            } catch (_) {}
+            } catch (_) { }
         }
 
-        res.status(200).json({ msg: 'Contraseña actualizada exitosamente.' });
+        return res.status(200).json({ msg: 'Contraseña actualizada exitosamente.' });
     } catch (error) {
         console.error('Error al cambiar contraseña:', error);
-        res.status(500).json({ error: 'Error interno al cambiar la contraseña.' });
+        return res.status(500).json({ error: 'Error interno al cambiar la contraseña.' });
     }
 };
 
-// 4. OBTENER ESTADÍSTICAS DEL TENDERO
+// OBTENER ESTADÍSTICAS DEL TENDERO
 exports.getEstadisticas = async (req, res) => {
     try {
         const tenderoId = req.usuario.id;
 
-        // Obtener la tienda del tendero
         const tienda = await Tienda.findOne({ where: { tendero_id: tenderoId, activo: true } });
         if (!tienda) {
             return res.status(404).json({ error: 'No se encontró una tienda activa para este tendero.' });
         }
 
-        // Contar fiados activos
-        const totalFiados = await Fiado.count({
-            where: { tienda_id: tienda.id, estado: { [Op.in]: ['pendiente', 'parcial'] } }
-        });
+        const [totalFiados, totalClientes, totalProductos, alertasPendientes] = await Promise.all([
+            Fiado.count({
+                where: { tienda_id: tienda.id, estado: { [Op.in]: ['pendiente', 'parcial'] } }
+            }),
+            ClienteTienda.count({
+                where: { tienda_id: tienda.id, activo: true }
+            }),
+            Producto.count({
+                where: { tienda_id: tienda.id, activo: true }
+            }),
+            Alerta.count({
+                where: { tienda_id: tienda.id, estado: 'pendiente' }
+            })
+        ]);
 
-        // Contar clientes vinculados
-        const totalClientes = await ClienteTienda.count({
-            where: { tienda_id: tienda.id, activo: true }
-        });
-
-        // Contar productos activos
-        const totalProductos = await Producto.count({
-            where: { tienda_id: tienda.id, activo: true }
-        });
-
-        // Contar alertas pendientes
-        const alertasPendientes = await Alerta.count({
-            where: { tienda_id: tienda.id, estado: 'pendiente' }
-        });
-
-        res.status(200).json({
+        return res.status(200).json({
             msg: 'Estadísticas del tendero',
             estadisticas: {
                 tienda_id: tienda.id,
@@ -466,6 +510,6 @@ exports.getEstadisticas = async (req, res) => {
         });
     } catch (error) {
         console.error('Error al obtener estadísticas:', error);
-        res.status(500).json({ error: 'Error interno al obtener estadísticas.' });
+        return res.status(500).json({ error: 'Error interno al obtener estadísticas.' });
     }
 };

@@ -41,6 +41,15 @@ exports.crearProducto = async (req, res) => {
             return res.status(400).json({ error: 'La categoría no existe o no pertenece a esta tienda.' });
         }
 
+        //  VALIDACIÓN: Evitar nombres de productos repetidos en la misma tienda
+        const nombreLimpio = nombre.trim();
+        const productoNombreExistente = await Producto.findOne({
+            where: { nombre: nombreLimpio, tienda_id }
+        });
+        if (productoNombreExistente) {
+            return res.status(409).json({ error: 'Ya existe un producto con este nombre en esta tienda.' });
+        }
+
         if (codigoBarras) {
             const productoExistente = await Producto.findOne({ where: { codigo_barras: codigoBarras, tienda_id } });
             if (productoExistente) {
@@ -48,7 +57,7 @@ exports.crearProducto = async (req, res) => {
             }
         }
 
-        // ✅ LÓGICA DE SUBIDA A CLOUDINARY
+        //  LÓGICA DE SUBIDA A CLOUDINARY
         let imagen_url = null;
         if (req.file) {
             const b64 = Buffer.from(req.file.buffer).toString('base64');
@@ -62,7 +71,7 @@ exports.crearProducto = async (req, res) => {
         }
 
         const nuevoProducto = await Producto.create({
-            nombre: nombre.trim(),
+            nombre: nombreLimpio,
             descripcion: descripcion ? descripcion.trim() : null,
             tienda_id,
             categoria_id,
