@@ -1,5 +1,6 @@
 const { Pago, Fiado, Cliente, ClienteTienda, Tienda, Tendero, sequelize } = require('../models');
 const { Op } = require('sequelize');
+const { calcularYActualizarScoring } = require('../services/scoringService');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 1. REGISTRAR PAGO
@@ -47,7 +48,7 @@ const registrarPago = async (req, res) => {
             return res.status(400).json({ error: `El monto excede el saldo pendiente (${saldoPendiente}).` });
         }
 
-        // ✅ 6. GENERAR NÚMERO DE PAGO ÚNICO (Soluciona el error notNull Violation)
+        // ✅ 6. GENERAR NÚMERO DE PAGO ÚNICO
         const numeroPago = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
         // 7. Preparar datos del pago
@@ -56,7 +57,7 @@ const registrarPago = async (req, res) => {
             tienda_id: fiado.tienda_id,
             cliente_id: fiado.cliente_id,
             registrado_por: tenderoId,
-            numero_pago: numeroPago, // ✅ AGREGADO
+            numero_pago: numeroPago,
             monto: monto,
             referencia: referencia || null,
             notas: notas || null,
@@ -101,6 +102,14 @@ const registrarPago = async (req, res) => {
         }
 
         await t.commit();
+
+        // ✅ 2. NUEVO: Recalcular scoring después de registrar el pago exitosamente
+        try {
+            await calcularYActualizarScoring(fiado.cliente_id, fiado.tienda_id);
+        } catch (scoringError) {
+            console.error('⚠️ Error al actualizar scoring tras pago:', scoringError);
+            // No hacemos rollback ni fallamos la petición de pago, solo logueamos el error
+        }
 
         // 11. Determinar nombre de columna para la respuesta
         const nombreColumnaMetodo = modeloPago.metodo_pago ? 'metodo_pago' : (modeloPago.tipo_pago ? 'tipo_pago' : 'metodo_pago');
