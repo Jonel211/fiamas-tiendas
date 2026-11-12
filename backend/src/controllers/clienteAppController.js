@@ -1,6 +1,7 @@
 ﻿const { Cliente, ClienteTienda, Tienda, Fiado, FiadoDetalle, Pago, Producto, sequelize } = require('../models');
 const cloudinary = require('../config/cloudinary');
 const { Op } = require('sequelize');
+const { calcularYActualizarScoring } = require('../services/scoringService');
 
 // ACTUALIZAR FOTO DE PERFIL DEL CLIENTE
 // PATCH /api/app-cliente/mi-perfil/foto
@@ -225,6 +226,11 @@ exports.misFiados = async (req, res) => {
             attributes: ['tienda_id'],
             include: [{ model: Tienda, as: 'tienda', where: { activo: true }, attributes: ['id'], required: true }]
         });
+
+        if (!vinculaciones || vinculaciones.length === 0) {
+            return res.status(200).json({ msg: 'No tienes fiados registrados.', fiados: [] });
+        }
+
         const whereFiado = {
             cliente_id: clienteId,
             tienda_id: { [Op.in]: vinculaciones.map(v => v.tienda_id) }
@@ -332,18 +338,18 @@ exports.miResumen = async (req, res) => {
                     && Number(f.monto_total) > Number(f.monto_pagado || 0));
                 const montoPendiente = activos.reduce((sum, f) => sum + Math.max(0, Number(f.monto_total) - Number(f.monto_pagado || 0)), 0);
                 const fiadosMora = activos.filter(f => f.fecha_vencimiento && String(f.fecha_vencimiento).slice(0, 10) < hoy).length;
-                const pagadosTarde = fiados.filter(f => f.estado === 'pagado' && f.fecha_vencimiento
-                    && f.pagos?.some(p => new Date(p.fecha_pago).toISOString().slice(0, 10) > String(f.fecha_vencimiento).slice(0, 10))).length;
                 const historial = fiados.filter(f => f.estado !== 'cancelado');
-                const score = historial.length ? Math.max(0, 100 - fiadosMora * 20 - pagadosTarde * 10) : null;
-                const categoria = score === null ? 'nuevo' : score >= 90 ? 'excelente' : score >= 75 ? 'bueno' : score >= 50 ? 'regular' : 'moroso';
+
+                // Sincronizar scoring con el motor centralizado
+                const scoring = await calcularYActualizarScoring(clienteId, vinculo.tienda_id);
+                await vinculo.update({ saldo_actual: montoPendiente });
 
                 return {
                     tienda: vinculo.tienda,
                     limite_credito: vinculo.limite_credito,
                     saldo_actual: montoPendiente,
-                    score_pagador: score,
-                    categoria_pagador: categoria,
+                    score_pagador: scoring.score,
+                    categoria_pagador: scoring.categoria,
                     total_fiados: historial.length,
                     total_pagos: fiados.reduce((total, f) => total + (f.pagos?.length || 0), 0),
                     fiados_activos: activos.length,
