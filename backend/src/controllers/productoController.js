@@ -1,7 +1,8 @@
-const { Producto, Tienda, Categoria } = require('../models');
-const cloudinary = require('../config/cloudinary'); // ✅ ESTA LÍNEA ES LA CLAVE
+const { Producto, Tienda, Categoria, sequelize } = require('../models');
 const { Op } = require('sequelize');
-const ERROR_CODIGO_BARRAS_DUPLICADO = 'Ya existe un producto con ese código de barras.';
+const cloudinary = require('../config/cloudinary');
+
+const ERROR_CODIGO_BARRAS_DUPLICADO = 'Ya existe un producto con ese código de barras en esta tienda.';
 
 const normalizarActivo = (valor) => {
     if (valor === undefined) return undefined;
@@ -18,6 +19,7 @@ exports.crearProducto = async (req, res) => {
         const usuarioId = req.usuario.id;
         const esAdmin = req.usuario.rol === 'admin';
         const { nombre, descripcion, tienda_id, categoria_id, codigo_barras, tipo_venta, unidad_medida, precio_venta, activo } = req.body;
+
         const codigoBarras = typeof codigo_barras === 'string' ? (codigo_barras.trim() || null) : codigo_barras;
 
         const activoNormalizado = normalizarActivo(activo);
@@ -41,15 +43,12 @@ exports.crearProducto = async (req, res) => {
             return res.status(400).json({ error: 'La categoría no existe o no pertenece a esta tienda.' });
         }
 
-        // VALIDACIÓN ROBUSTA DE NOMBRE ÚNICO
         const nombreLimpio = String(nombre).trim();
-        const nombreNormalizado = nombreLimpio.toLowerCase(); // Normalizar a minúsculas
-
-        console.log(' Buscando producto duplicado:', { nombre: nombreNormalizado, tienda_id });
+        const nombreNormalizado = nombreLimpio.toLowerCase();
 
         const productoExistente = await Producto.findOne({
             where: {
-                tienda_id: tienda_id,
+                tienda_id,
                 [Op.where]: sequelize.where(
                     sequelize.fn('LOWER', sequelize.col('nombre')),
                     nombreNormalizado
@@ -58,24 +57,15 @@ exports.crearProducto = async (req, res) => {
         });
 
         if (productoExistente) {
-            console.log(' PRODUCTO DUPLICADO ENCONTRADO:', productoExistente.nombre);
-            return res.status(409).json({
-                error: 'Ya existe un producto con este nombre en esta tienda.'
-            });
+            return res.status(409).json({ error: 'Ya existe un producto con este nombre en esta tienda.' });
         }
 
-        // Validación de código de barras único
         if (codigoBarras) {
             const productoConCodigo = await Producto.findOne({
-                where: {
-                    codigo_barras: codigoBarras,
-                    tienda_id: tienda_id
-                }
+                where: { codigo_barras: codigoBarras, tienda_id }
             });
             if (productoConCodigo) {
-                return res.status(409).json({
-                    error: 'Ya existe un producto con ese código de barras en esta tienda.'
-                });
+                return res.status(409).json({ error: ERROR_CODIGO_BARRAS_DUPLICADO });
             }
         }
 
@@ -101,7 +91,7 @@ exports.crearProducto = async (req, res) => {
             unidad_medida: unidad_medida || 'unidad',
             precio_venta: parseFloat(precio_venta),
             ...(activoNormalizado !== undefined ? { activo: activoNormalizado } : {}),
-            imagen_url: imagen_url
+            imagen_url
         });
 
         const productoCreado = await Producto.findByPk(nuevoProducto.id, {
@@ -112,25 +102,21 @@ exports.crearProducto = async (req, res) => {
             }]
         });
 
-        console.log(' Producto creado exitosamente:', productoCreado.nombre);
-
-        res.status(201).json({
+        return res.status(201).json({
             msg: 'Producto creado exitosamente.',
             producto: productoCreado
         });
     } catch (error) {
-        console.error(' Error al crear producto:', error);
+        console.error('Error al crear producto:', error);
 
-        // Manejar error de índice único de la base de datos
         if (error.name === 'SequelizeUniqueConstraintError') {
-            return res.status(409).json({
-                error: 'Ya existe un producto con este nombre o código de barras en esta tienda.'
-            });
+            return res.status(409).json({ error: 'Ya existe un producto con este nombre o código de barras en esta tienda.' });
         }
 
-        res.status(500).json({ error: 'Error interno al crear el producto.' });
+        return res.status(500).json({ error: 'Error interno al crear el producto.' });
     }
 };
+
 // ══════════════════════════════════════════════════════════════════════════
 // 2. LISTAR PRODUCTOS DE UNA TIENDA
 // ══════════════════════════════════════════════════════════════════════════
@@ -138,7 +124,8 @@ exports.listarProductosPorTienda = async (req, res) => {
     try {
         const usuarioId = req.usuario.id;
         const esAdmin = req.usuario.rol === 'admin';
-        const tiendaId = req.params.tiendaId;
+
+        const tiendaId = req.query.tienda_id || req.params.tiendaId;
 
         if (!tiendaId) {
             return res.status(400).json({ error: 'El parámetro tienda_id es obligatorio.' });
@@ -152,7 +139,10 @@ exports.listarProductosPorTienda = async (req, res) => {
         }
 
         const productos = await Producto.findAll({
-            where: { tienda_id: tiendaId },
+            where: {
+                tienda_id: tiendaId,
+                activo: true
+            },
             include: [{
                 model: Categoria,
                 as: 'categoria',
@@ -161,10 +151,13 @@ exports.listarProductosPorTienda = async (req, res) => {
             order: [['nombre', 'ASC']]
         });
 
-        res.status(200).json(productos);
+        return res.status(200).json({
+            msg: 'Productos obtenidos exitosamente.',
+            productos
+        });
     } catch (error) {
         console.error('Error al listar productos:', error);
-        res.status(500).json({ error: 'Error interno al obtener los productos.', detalle: error.message });
+        return res.status(500).json({ error: 'Error interno al obtener los productos.' });
     }
 };
 
@@ -196,10 +189,10 @@ exports.obtenerProductoPorId = async (req, res) => {
             return res.status(403).json({ error: 'No tienes permisos para ver este producto.' });
         }
 
-        res.status(200).json(producto);
+        return res.status(200).json({ producto });
     } catch (error) {
         console.error('Error al obtener producto:', error);
-        res.status(500).json({ error: 'Error interno al obtener el producto.' });
+        return res.status(500).json({ error: 'Error interno al obtener el producto.' });
     }
 };
 
@@ -212,6 +205,7 @@ exports.actualizarProducto = async (req, res) => {
         const esAdmin = req.usuario.rol === 'admin';
         const productoId = req.params.id;
         const { nombre, descripcion, categoria_id, codigo_barras, tipo_venta, unidad_medida, precio_venta, activo } = req.body;
+
         const codigoBarras = typeof codigo_barras === 'string' ? (codigo_barras.trim() || null) : codigo_barras;
 
         const activoNormalizado = normalizarActivo(activo);
@@ -238,6 +232,23 @@ exports.actualizarProducto = async (req, res) => {
             }
         }
 
+        if (nombre && nombre.trim().toLowerCase() !== producto.nombre.toLowerCase()) {
+            const nombreLimpio = nombre.trim();
+            const productoExistenteNombre = await Producto.findOne({
+                where: {
+                    tienda_id: producto.tienda_id,
+                    id: { [Op.ne]: productoId },
+                    [Op.where]: sequelize.where(
+                        sequelize.fn('LOWER', sequelize.col('nombre')),
+                        nombreLimpio.toLowerCase()
+                    )
+                }
+            });
+            if (productoExistenteNombre) {
+                return res.status(409).json({ error: 'Ya existe un producto con este nombre en esta tienda.' });
+            }
+        }
+
         if (codigoBarras) {
             const productoExistente = await Producto.findOne({
                 where: {
@@ -261,7 +272,6 @@ exports.actualizarProducto = async (req, res) => {
         if (precio_venta !== undefined) datosActualizacion.precio_venta = parseFloat(precio_venta);
         if (activoNormalizado !== undefined) datosActualizacion.activo = activoNormalizado;
 
-        // ✅ LÓGICA DE ACTUALIZACIÓN DE IMAGEN
         if (req.file) {
             const b64 = Buffer.from(req.file.buffer).toString('base64');
             const dataURI = `data:${req.file.mimetype};base64,${b64}`;
@@ -283,7 +293,7 @@ exports.actualizarProducto = async (req, res) => {
             }]
         });
 
-        res.status(200).json({
+        return res.status(200).json({
             msg: 'Producto actualizado exitosamente.',
             producto: productoActualizado
         });
@@ -292,7 +302,7 @@ exports.actualizarProducto = async (req, res) => {
         if (error.name === 'SequelizeUniqueConstraintError') {
             return res.status(409).json({ error: ERROR_CODIGO_BARRAS_DUPLICADO });
         }
-        res.status(500).json({ error: 'Error interno al actualizar el producto.' });
+        return res.status(500).json({ error: 'Error interno al actualizar el producto.' });
     }
 };
 
@@ -319,26 +329,32 @@ exports.eliminarProducto = async (req, res) => {
 
         await producto.destroy();
 
-        res.status(200).json({
+        return res.status(200).json({
             msg: 'Producto eliminado permanentemente.'
         });
     } catch (error) {
         console.error('Error al eliminar producto:', error);
-        res.status(500).json({ error: 'Error interno al eliminar el producto.' });
+        return res.status(500).json({ error: 'Error interno al eliminar el producto.' });
     }
 };
 
-// BUSQUEDA POR CODIGO DE BARRAS, SE USA EN EL POS PARA AGREGAR PRODUCTOS AL CARRITO
+// ══════════════════════════════════════════════════════════════════════════
+// 6. BÚSQUEDA POR CÓDIGO DE BARRAS (PARA EL POS)
+// ══════════════════════════════════════════════════════════════════════════
 exports.buscarPorCodigoBarras = async (req, res) => {
     try {
         const { codigo } = req.params;
         const { tienda_id } = req.query;
-        const producto = await Producto.findOne({ 
-            where: { codigo_barras: codigo, tienda_id: tienda_id, activo: true } 
+
+        const producto = await Producto.findOne({
+            where: { codigo_barras: codigo, tienda_id, activo: true }
         });
-        if (!producto) return res.status(404).json({ error: 'Producto no encontrado' });
-        res.status(200).json(producto);
+
+        if (!producto) return res.status(404).json({ error: 'Producto no encontrado.' });
+
+        return res.status(200).json({ producto });
     } catch (error) {
-        res.status(500).json({ error: 'Error al buscar producto' });
+        console.error('Error al buscar producto por código de barras:', error);
+        return res.status(500).json({ error: 'Error al buscar producto.' });
     }
 };

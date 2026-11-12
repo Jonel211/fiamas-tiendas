@@ -5,10 +5,14 @@ const VendorsFilters = ({
   onSearchChange,
   statusFilter,
   onStatusChange,
+  premiumFilter,
+  onPremiumChange,
   onClearFilters,
   onOpenModal
 }) => {
-  const hasActiveFilters = Boolean(searchTerm?.trim() || statusFilter !== 'all');
+  const hasActiveFilters = Boolean(
+    searchTerm?.trim() || statusFilter !== 'all' || (premiumFilter && premiumFilter !== 'all')
+  );
 
   return (
     <div className="flex flex-col sm:flex-row gap-3 mb-4 items-stretch sm:items-center">
@@ -52,6 +56,16 @@ const VendorsFilters = ({
         <option value="all">Todos los tenderos</option>
         <option value="active">Activos</option>
         <option value="inactive">Inactivos</option>
+      </select>
+
+      <select
+        value={premiumFilter || 'all'}
+        onChange={(e) => onPremiumChange && onPremiumChange(e.target.value)}
+        className="px-4 py-2 bg-white/85 dark:bg-[#1A1F2E]/80 border border-white/50 dark:border-white/10 rounded-md text-sm text-gray-700 dark:text-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1D9492]/30 focus:border-[#1D9492] cursor-pointer backdrop-blur-sm"
+      >
+        <option value="all">Todos los planes</option>
+        <option value="premium">Solo Premium</option>
+        <option value="standard">Estándar / Básico</option>
       </select>
 
       {hasActiveFilters && (
