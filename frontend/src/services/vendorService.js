@@ -56,6 +56,14 @@ export const toggleTenderoPremium = async (id, es_premium) => {
   return data;
 };
 
+// Verificar duplicados en tiempo real (DNI o Teléfono)
+export const verificarDuplicadoTendero = async ({ dni, telefono }) => {
+  const params = new URLSearchParams();
+  if (dni) params.append('dni', dni);
+  if (telefono) params.append('telefono', telefono);
+  return await apiRequest(`/tenderos/verificar-duplicado?${params.toString()}`);
+};
+
 // Eliminar un tendero
 export const deleteTendero = async (id) => {
   cachedTenderos = null;

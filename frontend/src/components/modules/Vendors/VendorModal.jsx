@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Save, Loader2, AlertCircle } from 'lucide-react';
 import ImagePicker from '@/components/ui/ImagePicker';
+import { verificarDuplicadoTendero } from '@/services/vendorService';
 
 const VendorModal = ({
   isOpen,
@@ -13,6 +14,63 @@ const VendorModal = ({
   modalError
 }) => {
   const [validationErrors, setValidationErrors] = useState({});
+  const [duplicateWarnings, setDuplicateWarnings] = useState({ dni: null, telefono: null });
+
+  // Verificación en tiempo real de duplicado de DNI
+  useEffect(() => {
+    const dni = (currentVendor?.dni || '').trim();
+    if (!dni || dni.length !== 8) {
+      setDuplicateWarnings((prev) => (prev.dni ? { ...prev, dni: null } : prev));
+      return;
+    }
+    if (currentVendor?.id && dni === currentVendor?.initialDni) {
+      setDuplicateWarnings((prev) => (prev.dni ? { ...prev, dni: null } : prev));
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await verificarDuplicadoTendero({ dni });
+        if (res?.existe) {
+          setDuplicateWarnings((prev) => ({ ...prev, dni: res.mensaje || 'El DNI ya está registrado.' }));
+        } else {
+          setDuplicateWarnings((prev) => (prev.dni ? { ...prev, dni: null } : prev));
+        }
+      } catch (err) {
+        console.error('Error al verificar duplicado de DNI:', err);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [currentVendor?.dni, currentVendor?.id, currentVendor?.initialDni]);
+
+  // Verificación en tiempo real de duplicado de teléfono
+  useEffect(() => {
+    const tel = (currentVendor?.telefono || '').trim();
+    if (!tel || tel.length !== 9) {
+      setDuplicateWarnings((prev) => (prev.telefono ? { ...prev, telefono: null } : prev));
+      return;
+    }
+    if (currentVendor?.id && tel === currentVendor?.initialTelefono) {
+      setDuplicateWarnings((prev) => (prev.telefono ? { ...prev, telefono: null } : prev));
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await verificarDuplicadoTendero({ telefono: tel });
+        if (res?.existe) {
+          setDuplicateWarnings((prev) => ({ ...prev, telefono: res.mensaje || 'El teléfono ya está registrado.' }));
+        } else {
+          setDuplicateWarnings((prev) => (prev.telefono ? { ...prev, telefono: null } : prev));
+        }
+      } catch (err) {
+        console.error('Error al verificar duplicado de teléfono:', err);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [currentVendor?.telefono, currentVendor?.id, currentVendor?.initialTelefono]);
 
   if (!isOpen || !currentVendor) return null;
 
@@ -25,6 +83,8 @@ const VendorModal = ({
       errors.dni = 'El DNI es obligatorio.';
     } else if (!/^\d{8}$/.test(dni)) {
       errors.dni = `El DNI debe tener exactamente 8 dígitos (ingresaste ${dni.length}).`;
+    } else if (duplicateWarnings.dni) {
+      errors.dni = duplicateWarnings.dni;
     }
 
     const tel = (currentVendor.telefono || '').trim();
@@ -32,6 +92,8 @@ const VendorModal = ({
       errors.telefono = 'El teléfono es obligatorio.';
     } else if (!/^\d{9}$/.test(tel)) {
       errors.telefono = `El teléfono debe tener exactamente 9 dígitos (ingresaste ${tel.length}).`;
+    } else if (duplicateWarnings.telefono) {
+      errors.telefono = duplicateWarnings.telefono;
     }
 
     if (!currentVendor.nombres || currentVendor.nombres.trim().length < 2) {
@@ -42,8 +104,15 @@ const VendorModal = ({
       errors.apellidos = 'Ingresa los apellidos (mínimo 2 letras).';
     }
 
-    if (!currentVendor.id && (!currentVendor.password || currentVendor.password.trim().length < 6)) {
-      errors.password = 'La contraseña debe tener al menos 6 caracteres.';
+    const pwd = (currentVendor.password || '').trim();
+    if (!currentVendor.id) {
+      if (!pwd) {
+        errors.password = 'La contraseña es obligatoria.';
+      } else if (pwd.length < 4 || pwd.length > 6) {
+        errors.password = 'La contraseña debe tener entre 4 y 6 caracteres.';
+      }
+    } else if (pwd && (pwd.length < 4 || pwd.length > 6)) {
+      errors.password = 'La nueva contraseña debe tener entre 4 y 6 caracteres.';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -95,13 +164,19 @@ const VendorModal = ({
                   if (validationErrors.dni) setValidationErrors((prev) => ({ ...prev, dni: null }));
                 }}
                 className={`w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:text-white outline-none text-sm transition-all ${
-                  validationErrors.dni
+                  validationErrors.dni || duplicateWarnings.dni
                     ? 'border-red-500 focus:ring-2 focus:ring-red-400 bg-red-50/30 dark:bg-red-900/10'
                     : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-teal-500'
                 }`}
                 placeholder="Ej. 72345678"
               />
-              {validationErrors.dni && (
+              {duplicateWarnings.dni && (
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1 font-medium flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>{duplicateWarnings.dni}</span>
+                </p>
+              )}
+              {validationErrors.dni && !duplicateWarnings.dni && (
                 <p className="text-xs text-red-500 mt-1 font-medium">{validationErrors.dni}</p>
               )}
             </div>
@@ -121,13 +196,19 @@ const VendorModal = ({
                   if (validationErrors.telefono) setValidationErrors((prev) => ({ ...prev, telefono: null }));
                 }}
                 className={`w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:text-white outline-none text-sm transition-all ${
-                  validationErrors.telefono
+                  validationErrors.telefono || duplicateWarnings.telefono
                     ? 'border-red-500 focus:ring-2 focus:ring-red-400 bg-red-50/30 dark:bg-red-900/10'
                     : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-teal-500'
                 }`}
                 placeholder="Ej. 987654321"
               />
-              {validationErrors.telefono && (
+              {duplicateWarnings.telefono && (
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1 font-medium flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>{duplicateWarnings.telefono}</span>
+                </p>
+              )}
+              {validationErrors.telefono && !duplicateWarnings.telefono && (
                 <p className="text-xs text-red-500 mt-1 font-medium">{validationErrors.telefono}</p>
               )}
             </div>
@@ -192,11 +273,12 @@ const VendorModal = ({
 
             <div className={currentVendor.id ? 'md:col-span-2' : ''}>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Contraseña {currentVendor.id ? '(Opcional para actualizar)' : '*'}
+                Contraseña {currentVendor.id ? '(Opcional, 4 a 6 caracteres)' : '* (4 a 6 caracteres)'}
               </label>
               <input
                 type="password"
-                placeholder={currentVendor.id ? 'Dejar en blanco para conservar la actual' : 'Mínimo 6 caracteres'}
+                maxLength={6}
+                placeholder={currentVendor.id ? 'Dejar en blanco para conservar la actual' : 'Entre 4 y 6 caracteres'}
                 required={!currentVendor.id}
                 value={currentVendor.password}
                 onChange={(e) => {
