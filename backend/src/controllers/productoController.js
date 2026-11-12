@@ -300,7 +300,12 @@ exports.actualizarProducto = async (req, res) => {
     } catch (error) {
         console.error('Error al actualizar producto:', error);
         if (error.name === 'SequelizeUniqueConstraintError') {
-            return res.status(409).json({ error: ERROR_CODIGO_BARRAS_DUPLICADO });
+            const esNombre = error.fields && (error.fields.nombre !== undefined || error.errors?.some(e => e.path === 'nombre'));
+            return res.status(409).json({
+                error: esNombre
+                    ? 'Ya existe un producto con este nombre en esta tienda.'
+                    : 'Ya existe un producto con este código de barras en esta tienda.'
+            });
         }
         return res.status(500).json({ error: 'Error interno al actualizar el producto.' });
     }

@@ -148,16 +148,36 @@ const registrarTendero = async ({ dni, nombres, apellidos, password, telefono, n
         throw error;
     }
 
+    const dniLimpio = String(dni).trim();
+    if (!/^\d{8}$/.test(dniLimpio)) {
+        const error = new Error('El DNI debe tener exactamente 8 dígitos numéricos.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const telLimpio = String(telefono).trim();
+    if (!/^\d{9}$/.test(telLimpio)) {
+        const error = new Error('El teléfono debe tener exactamente 9 dígitos numéricos.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (typeof password !== 'string' || password.length < 4 || password.length > 6) {
+        const error = new Error('La contraseña debe tener entre 4 y 6 caracteres.');
+        error.statusCode = 400;
+        throw error;
+    }
+
     const t = await sequelize.transaction();
     try {
-        const existeDni = await Tendero.findOne({ where: { dni }, transaction: t });
+        const existeDni = await Tendero.findOne({ where: { dni: dniLimpio }, transaction: t });
         if (existeDni) {
             const error = new Error('Ya existe un tendero con ese DNI.');
             error.statusCode = 400;
             throw error;
         }
 
-        const existeTelefono = await Tendero.findOne({ where: { telefono }, transaction: t });
+        const existeTelefono = await Tendero.findOne({ where: { telefono: telLimpio }, transaction: t });
         if (existeTelefono) {
             const error = new Error('Ya existe un tendero con ese número de teléfono.');
             error.statusCode = 400;
@@ -165,17 +185,17 @@ const registrarTendero = async ({ dni, nombres, apellidos, password, telefono, n
         }
 
         const nuevoTendero = await Tendero.create({
-            dni,
-            nombres,
-            apellidos,
+            dni: dniLimpio,
+            nombres: String(nombres).trim(),
+            apellidos: String(apellidos).trim(),
             password_hash: password,
-            telefono
+            telefono: telLimpio
         }, { transaction: t });
 
         const nuevaTienda = await Tienda.create({
             tendero_id: nuevoTendero.id,
-            nombre: nombre_tienda || `Tienda de ${nombres}`,
-            telefono: telefono,
+            nombre: nombre_tienda ? String(nombre_tienda).trim() : `Tienda de ${String(nombres).trim()}`,
+            telefono: telLimpio,
             qr_token: crypto.randomUUID(),
             qr_activo: true,
             activo: true

@@ -58,9 +58,11 @@ const VendorsPage = () => {
       setCurrentVendor({
         id: vendor.id,
         dni: vendor.dni || '',
+        initialDni: vendor.dni || '',
         nombres: vendor.nombres || '',
         apellidos: vendor.apellidos || '',
         telefono: vendor.telefono || '',
+        initialTelefono: vendor.telefono || '',
         foto_perfil_url: vendor.foto_perfil_url || '',
         password: '',
         activo: Boolean(vendor.activo),
