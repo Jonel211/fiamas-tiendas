@@ -110,7 +110,8 @@ const login = async ({ identificador, password, rolRequerido }) => {
             telefono: usuario.telefono,
             email: usuario.email || undefined,
             rol,
-            tienda_id: tiendaId
+            tienda_id: tiendaId,
+            es_premium: usuario.es_premium === true
         }
     };
 };
