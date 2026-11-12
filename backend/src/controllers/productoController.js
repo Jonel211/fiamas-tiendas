@@ -138,11 +138,13 @@ exports.listarProductosPorTienda = async (req, res) => {
             return res.status(404).json({ error: 'Tienda no encontrada o no tienes permisos.' });
         }
 
+        const whereProductos = { tienda_id: tiendaId };
+        if (req.query.activo !== undefined) {
+            whereProductos.activo = String(req.query.activo).toLowerCase() === 'true';
+        }
+
         const productos = await Producto.findAll({
-            where: {
-                tienda_id: tiendaId,
-                activo: true
-            },
+            where: whereProductos,
             include: [{
                 model: Categoria,
                 as: 'categoria',
